@@ -5,6 +5,7 @@ Contributor
 서비스 - @minjune8506   
 CSQL, 큐브리드 매니저 - @yechan0815
 <hr>
+
 ## 큐브리드 아키텍쳐 개요
 
 ![image](https://user-images.githubusercontent.com/48946398/140897563-206dcf11-6e65-4095-ad80-f20eb5dceb33.png)
