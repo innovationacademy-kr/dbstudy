@@ -1,10 +1,4 @@
 # 03. 시작
-Contributor
-프로세스 - @daumtto53   
-데이터베이스 - @mtak0235   
-서비스 - @minjune8506   
-CSQL, 큐브리드 매니저 - @yechan0815
-<hr>
 
 ## 큐브리드 아키텍쳐 개요
 
@@ -237,7 +231,6 @@ PS C:\CUBRID\testdb> cubrid server start testdb
     - `cubrid service status`
 - **서버 연결 테스트**
     - 큐브리드는 GUI 도구 없이 데이터베이스에 CSQL 질의 도구를 통해 질의가 가능하다.
-    - (생략해도 될거같음) CSQL을 사용하여 데이터베이스 서버 연결 테스트가 가능하다.
     
     ```bash
     $ csql -u dba demodb
