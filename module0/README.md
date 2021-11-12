@@ -1,3 +1,5 @@
+# 05. sql 큐브리드 스터티
+
 ## 큐브리드 SQL
 
 ### 1. 테이블 정의문
@@ -8,21 +10,31 @@
         - SHARED : 칼럼 값은 모든 행에서 동일하다. 따라서 SHARED 속성은 UNIQUE 제약 조건과 동시에 정의할 수 없다. 초기에 설정한 값과 다른 새로운 값을 INSERT 하면, 해당 칼럼 값은 모든 행에서 새로운 값으로 갱신된다.
         - DEFAULT : 새로운 행을 삽입할 때 칼럼 값을 지정하지 않으면 DEFAULT 속성으로 설정한 값이 저장된다.
     - DEFAULT 속성값으로 허용되는 의사 칼럼(pseudocolumn)과 함수는 다음과 같다 :
+    <img src="05sql이미지/데이터정의문default.png">
+    
     - 칼럼값에 자동으로 일련번호를 부여하려면 AUTO_INCREMENT 속성을 사용한다.
     - 칼럼의 제약 조건 종류는 NOT NULL, UNIQUE, PRIMARY KEY, FOREIGN KEY가 있다.
     
-    테이블에서 key란 각 행을 고유하게 식별할 수 있는 하나 이상의 칼럼들의 집합을 말한다. candidate key(후보키)는 테이블 내의 각 행을 고유하게 식별하는 칼럼들의 집합을 의미하며, 사용자는 이러한 candidate key 중 하나를 primary key(기본키)로 정의할 수 있다.
+        NOT NULL	반드시 NULL이 아닌 값을 가져야 함
+        UNIQUE	정의된 칼럼이 고유한 값을 갖도록 함
+        PRIMARY KEY	기본키로 정의된 칼럼 값은 각 행에서 고유하게 식별됨
+        FOREIGH KEY	참조 관계에 있는 다른 테이블의 기본키를 참조    
+        
+    <aside>
+    💡 테이블에서 key란 각 행을 고유하게 식별할 수 있는 하나 이상의 칼럼들의 집합을 말한다. candidate key(후보키)는 테이블 내의 각 행을 고유하게 식별하는 칼럼들의 집합을 의미하며, 사용자는 이러한 candidate key 중 하나를 primary key(기본키)로 정의할 수 있다.
     
-    테이블에서 key란 각 행을 고유하게 식별할 수 있는 하나 이상의 칼럼들의 집합을 말한다. candidate key(후보키)는 테이블 내의 각 행을 고유하게 식별하는 칼럼들의 집합을 의미하며, 사용자는 이러한 candidate key 중 하나를 primary key(기본키)로 정의할 수 있다.
+    </aside>
     
-
+    <aside>
+    💡 테이블에서 key란 각 행을 고유하게 식별할 수 있는 하나 이상의 칼럼들의 집합을 말한다. candidate key(후보키)는 테이블 내의 각 행을 고유하게 식별하는 칼럼들의 집합을 의미하며, 사용자는 이러한 candidate key 중 하나를 primary key(기본키)로 정의할 수 있다.
+    
+    </aside>
+    
 - **CREATE TABLE LIKE**
     - 이미 존재하는 테이블과 동일한 스키마의 테이블을 생성한다.
     - 데이터는 빈 상태로 생성된다.
-
 - **CREATE TABLE AS SELECT**
     - SELECT 결과 데이터를 가진 테이블을 새로 생성한다.
-
 - **ALTER TABLE**
     - 테이블의 칼럼, 제약 조건, 인덱스를 추가하거나 변경 또는 삭제한다.
     - ADD COLUMN
@@ -55,10 +67,8 @@
         - 테이블에 정의된 기본키 제약 조건을 삭제한다.
     - DROP FOREIGN KEY
         - 테이블에 정의된 외래키 제약 조건을 삭제한다.
-
 - **DROP TABLE**
     - 테이블을 제거한다.
-
 - **RENAME TABLE**
     - 테이블의 이름을 변경한다.
 
@@ -66,12 +76,10 @@
 
 - **CREATE INDEX**
     - 인덱스를 생성한다.
-
 - **ALTER INDEX**
     - 인덱스의 이름을 변경하거나 인덱스를 재생성한다.
     - REBUILD
         - 이미 생성된 것과 같은 구조의 인덱스를 재생성한다.
-
 - **DROP INDEX**
     - 인덱스를 제거한다.
     - 고유 인덱스는 DROP CONSTRAINT로도 삭제할 수 있다.
@@ -92,7 +100,6 @@
         - UNION 구문을 포함하지 않는다.
         - UNION ALL을 사용해 갱신 가능한 부분 질의로만 질의를 구성한 경우에는 갱신이 가능하다.
         - 단, 테이블은 UNION ALL을 구성하는 부분 질의 중 어느 한 질의에만 존재해야 하며, UNION ALL 구문으로 생성된 뷰에 레코드를 삽입하는 경우 레코드가 입력될 테이블은 시스템이 결정한다.
-
 - **ALTER VIEW**
     - 뷰를 갱신한다.
     - ADD QUERY
@@ -105,10 +112,8 @@
         - 뷰 질의 명세부에 정의된 질의를 삭제한다.
     - COMMENT
         - 뷰와 칼럼들, 어트리뷰트들의 커멘트를 변경한다.
-
 - **DROP VIEW**
     - 뷰를 제거한다.
-
 - **RENAME VIEW**
     - 뷰의 이름을 변경한다.
 
@@ -117,10 +122,8 @@
 - **CREATE SERIAL**
     - 고유한 순번을 반환하는 시리얼을 생성한다.
     - 시리얼 번호는 테이블과 독립적으로 생성된다.
-
 - **ALTER SERIAL**
     - 시리얼의 증가량, 시작값, 최댓값을 변경하거나 제거한다.
-
 - **DROP SERIAL**
     - 시리얼을 제거한다.
 
@@ -130,19 +133,14 @@
 
 - **CREATE USER**
     - 사용자를 생성한다.
-
 - **ALTER USER**
     - 사용자의 암호를 변경한다.
-
 - **DROP USER**
     - 사용자를 삭제한다.
-
 - **CREATE USER ... GROUPS**
     - 사용자 그룹을 생성한다.
-
 - **CREATE USER ... MEMBERS**
     - 사용자를 생성하고 해당 사용자를 명시한 그룹에 포함시킨다.
-
 - **GRANT operation TO user**
     - 특정 사용자에게 특정 연산(INSERT, UPDATE, DELETE 등) 권한을 부여한다.
 
@@ -171,7 +169,6 @@
         - UPDATE 문, DELETE 문에서 사용할 행에 대해 미리 잠금(lock)을 설정한다.
     - START WITH ... CONNECT BY
         - 계층 질의를 수행한다.
-
 - **INSERT**
     - 데이터베이스에 존재하는 테이블에 새로운 레코드를 삽입한다.
     - INSERT ... SELECT
@@ -180,12 +177,10 @@
         - 삽입(INSERT)을 수행하되 고유 키 위반(unique key violation)이면 고유 키 조건의 행에 대해 갱신(UPDATE)을 수행한다.
         - 즉, UNIQUE 인덱스 또는 PRIMARY KEY 제약 조건이 설정된 칼럼에 중복된 값이 삽입되는 상황에서 에러를 출력하지 않고 새로운 값으로 갱신한다.
         - 사용자가 ON DUPLICATE KEY UPDATE 문을 수행할 수 있게 GRANT 문으로 사용자 권한을 부여하려면 INSERT 권한뿐만 아니라 UPDATE 권한도 부여해야 한다.
-
 - **MERGE**
     - 하나 이상의 원본으로부터 하나의 테이블 또는 뷰에 삽입 또는 갱신을 수행한다.
     - 또한 삭제 조건도 추가할 수 있다.
     - 사용자가 MERGE 문을 수행할 수 있게 GRANT 문으로 사용자 권한을 부여하려면 INSERT 권한, UPDATE 권한, 그리고 DELETE 권한을 부여해야 한다.
-
 - **UPDATE**
     - 대상 테이블 또는 뷰에 저장된 레코드의 칼럼 값을 새로운 값으로 업데이트한다.
     - LIMIT
@@ -195,11 +190,9 @@
         - 트리거의 실행 순서나 잠금 순서를 유지하고자 할 때 유용하다.
     - JOIN
         - 여러 개의 테이블을 조인한 후 갱신을 수행한다.
-
 - **REPLACE**
     - INSERT 와 비슷하지만, 고유 키 위반이면(PRIMARY KEY 또는 UNIQUE 제약 조건이 정의된 칼럼에 중복된 값을 삽입) 에러 출력 없이 기존 레코드를 삭제한 후 새로운 레코드를 삽입한다.
     - REPLACE 문을 수행하려면 INSERT 권한과 DELETE 권한이 모두 필요하다.
-
 - **DELETE**
     - 테이블 내에 레코드를 삭제한다.
     - WHERE과 결합하여 삭제 조건을 명시할 수 있다.
@@ -207,7 +200,6 @@
         - 삭제할 행의 개수를 제한한다.
     - JOIN
         - 여러 개의 테이블을 조인한 후 삭제를 수행한다.
-
 - **TRUNCATE**
     - 명시된 테이블의 모든 레코드를 삭제한다.
     - 내부적으로 테이블에 정의된 모든 인덱스와 제약 조건을 먼저 삭제한 후 레코드를 삭제하므로 WHERE 조건이 없은 DELETE 문을 수행하는 것보다 빠르다.
@@ -219,16 +211,16 @@
 큐브리드는 기본적인 문자 자료형, 숫자 자료형, 날짜/시간 자료형을 지원하며, 추가로 BLOB, CLOB 자료형을 지원한다.
 
 - **7-1. 숫자 자료형**
+        
+    <aside>
+    💡 큐브리드는 수치형 데이터 타입에 대해 UNSIGNED 타입을 지원하지 않는다.
     
-    [Untitled](https://www.notion.so/781d5343133d41bea6444e2f49a49ee2)
+    </aside>
+    <img src="./05sql이미지/숫자자료형01.png">
     
-    큐브리드는 수치형 데이터 타입에 대해 UNSIGNED 타입을 지원하지 않는다.
-    
-    ![스크린샷 2021-11-09 오후 4.15.05.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/00738b96-e1c6-4c0f-ac2e-e7a9544d0d28/스크린샷_2021-11-09_오후_4.15.05.png)
-    
-    ![스크린샷 2021-11-09 오후 4.15.19.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/84a03aee-89c3-40d6-8ecd-2a82fe4fb57c/스크린샷_2021-11-09_오후_4.15.19.png)
-    
+    <img src="./05sql이미지/숫자자료형02.png">
 
+    
 - **7-2. 스트링 자료형**
     
     큐브리드는 두 가지 비트열을 지원한다.
@@ -264,38 +256,41 @@
     
     - ENUM 타입은 열거형 문자열 상수들의 중복 없는 순서 집합으로 구성되어 있는 타입이다.
     
-    External LOB(Large Object) 타입은 텍스트 또는 이미지 등 크기가 큰 객체를 처리하기 위한 데이터 타입이다.
+    <aside>
+    💡 External LOB(Large Object) 타입은 텍스트 또는 이미지 등 크기가 큰 객체를 처리하기 위한 데이터 타입이다.
     
-    ![스크린샷 2021-11-09 오후 4.15.42.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/5481e965-1a57-4bc9-8bf1-47d4e6f72b22/스크린샷_2021-11-09_오후_4.15.42.png)
+    </aside>
     
-    ![스크린샷 2021-11-09 오후 4.15.55.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/8290a910-5d08-4feb-8903-a75a4a1e84f3/스크린샷_2021-11-09_오후_4.15.55.png)
-    
+    <img src="./05sql이미지/스트링자료형01.png">    
+    <img src="./05sql이미지/스트링자료형02.png">
 
+    
 - **7-3. 날짜 자료형**
-    
-    [Untitled](https://www.notion.so/8909b3252248459696372e08e03da703)
-    
-    ![스크린샷 2021-11-09 오후 4.16.09.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/92ffc1f8-53d5-469d-a3fe-720252c25e97/스크린샷_2021-11-09_오후_4.16.09.png)
+
+    <img src="./05sql이미지/날짜자료형.png">
+
     
 
 ### 8. 식별자 비교
 
 - 큐브리드와 MySQL의 식별자(identifier) 특징을 비교하면 다음과 같다.
     
-    ![스크린샷 2021-11-09 오후 4.16.38.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/8b00b1bf-ce44-429d-8d3b-cd0ef2888ea0/스크린샷_2021-11-09_오후_4.16.38.png)
+  
+    <img src="./05sql이미지/식별자비교01.png">
+
     
-    ![스크린샷 2021-11-09 오후 4.16.51.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/38556828-6164-4936-976c-2ae52b59bfe9/스크린샷_2021-11-09_오후_4.16.51.png)
+    <img src="./05sql이미지/식별자비교02.png">
+
     
 
 ---
 
 ## SQL기능비교
 
-samin
-
-- 질의문
+- **질의문**
     
-    ![스크린샷 2021-11-08 오전 10.14.26.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/6096df01-cab3-4a43-b8c5-de39d0e124eb/스크린샷_2021-11-08_오전_10.14.26.png)
+    <img src="./05sql이미지/질의문.png">
+
     
     - 윈도우 함수
         - 윈도우 함수는 각 그룹의 누적, 이동, 중앙 집계를 계산하는 함수이며, 각 그룹에 대해 여러 개의 행을 반환 한다는 점이 집계 함수(aggregate function)와 다르다. OVER 절을 사용하는 윈도우 함수는 SQL:2003표준으로 제정됐고 SQL:2008 표준에서 확장됐다.
@@ -320,16 +315,18 @@ samin
     - 문자열 집계
         - 문자열 집계는 그룹화되는 칼럼을 기준으로 여러 개의 행으로 표현되는 다른 칼럼의 값들이 하나의 행에 표현되도록 문자열을 합치는 기능
         - GROUP_CONCAT
-- 정규 표현식
+- **정규 표현식**
     
-    ![스크린샷 2021-11-08 오전 10.15.09.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/b3748a9e-d717-42a6-a28d-e4d4eee1fe5c/스크린샷_2021-11-08_오전_10.15.09.png)
+    <img src="./05sql이미지/정규표현식.png">
+
     
     - 정규 표현식 기반 비교 (큐브리드 o)
     - 정규 표현식 기반 부분 문자열 (cubrid x)
     - 정규 표현식 기반 REPLACE (cubrid x)
-- 제약 조건
+- **제약 조건**
     
-    ![스크린샷 2021-11-08 오전 10.15.56.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/07b307c3-9813-4259-abeb-ea743c847eec/스크린샷_2021-11-08_오전_10.15.56.png)
+    <img src="./05sql이미지/제약조건.png">
+
     
     - 지연된 제약 조건 (큐브리드는 지원하지않는다)
     - CHECK제약조건 (큐브리드는 지원)
@@ -337,9 +334,10 @@ samin
         manipulation language) 질의 수행 시 제약 조건을 검사하는 기능으로 ANSI SQL-92 표준이다.
         MySQL과 큐브리드는 파싱을 허용하되 실제로 기능이 동작하지는 않는다.
         - 참고로 큐브리드에서 뷰를 생성하는 경우 WITH CHECK OPTION을 사용해 데이터 입력을 제한할 수있다.
-- 인덱싱
+- **인덱싱**
     
-    ![스크린샷 2021-11-08 오전 10.16.44.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/4d9d317d-8f42-45a9-ac60-ecc33514bd79/스크린샷_2021-11-08_오전_10.16.44.png)
+    <img src="./05sql이미지/인덱싱.png">
+
     
     - 필터링된 인덱스
         - 필터링된 인덱스는 인덱스 생성 시 조건을 명시해 한정적인 데이터만을 인덱스 대상으로 삼는 것을 말한다. 부분 인덱스(partial index)라고도 한다.
@@ -349,30 +347,30 @@ samin
         - 키가 아닌 칼럼을 포함하는 인덱스란 키가 아닌 칼럼(non-key column)이지만 검색 결과에 항상 포함되는 칼럼이 단말 노드(leaf node)에 포함돼 있는 인덱스다.
     - 클러스터형 인덱스
         - 
-- DML (데이터 조작 언어(영어: Data Manipulation Language, **DML**))
+- **DML (데이터 조작 언어(영어: Data Manipulation Language, DML))**
     
-    ![스크린샷 2021-11-08 오전 10.17.31.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/6a959c76-39da-4c2c-8145-fbbddf815d52/스크린샷_2021-11-08_오전_10.17.31.png)
+    <img src="./05sql이미지/DML.png">
+
     
     - 다중행INSERT문
         - 다중 행 INSERT 문은 여러 개의 행을 하나의 질의문으로 처리하는 구문으로, ANSI SQL-92 표준이다.큐브리드는 이를 지원한다.
     - MERGE 문
         - MERGE 문은 하나 이상의 원본에서 행을 선택해 하나의 테이블 또는 뷰에 갱신하거나 삽입하는 데 사용되는 구문으로, SQL:2003 표준이다
-- 자료형
+- **자료형**
     
-    ![스크린샷 2021-11-08 오전 10.18.20.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/5b0057be-697f-4144-87f5-56c021d61822/스크린샷_2021-11-08_오전_10.18.20.png)
+    <img src="./05sql이미지/자료형.png">
+
     
     - ENUM 자료형
     - BOOLEAN 자료형
     - INTERVAL 자료형
-
-- jolim
-- DDL
+- **DDL**
     
     Data Definition Language: create, alter, drop tables.
     
-    ![스크린샷 2021-11-08 오전 10.19.11.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/d75a2f70-a6a6-4e87-b231-51e384ea6dc7/스크린샷_2021-11-08_오전_10.19.11.png)
+    <img src="./05sql이미지/DDL01.png">
     
-    ![스크린샷 2021-11-08 오전 10.19.26.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/f9dc685e-b370-4456-b878-16a9bcfcfb00/스크린샷_2021-11-08_오전_10.19.26.png)
+    <img src="./05sql이미지/DDL02.png">
     
     - 트랜잭션 지원 DDL
         - DDL 문이 트랜잭션에 묶여서 수행될 수 있는가? 커밋이 완료되어야만 테이블의 처리가 가능하다는 것. 큐브리드는 지원한다.
@@ -397,9 +395,9 @@ samin
     - TRUNCATE 트리거
         - TRUNCATE문이 실행될 때마다의 트리거로, 큐브리드는 지원하지 않는다.
     
-- 프로그래밍
+- **프로그래밍**
     
-    ![스크린샷 2021-11-08 오전 10.20.05.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/7295ea2c-1a2a-40bc-ac72-30a5bc5245d7/스크린샷_2021-11-08_오전_10.20.05.png)
+    <img src="./05sql이미지/프로그래밍.png">
     
     - 저장 프로시저
         - 저장 프로시저를 JVM를 통해 제한적으로 지원한다. 자바에 익숙한 사용자에게는 구현이 편리한 장점이 있지만 성능상의 이점은 없다.
@@ -411,11 +409,11 @@ samin
         - 문장 수준 (; 기준)으로 실행되는 트리거를 문장 수준 트리거, 하나의 행에 대하여 연산이 수행될 때마다 실행되는 트리거를 행 수준 트리거라고 한다. 큐브리드는 이를 지원하고 있다.
     - 내장된 스케줄러
         - 스케줄링이 필요한 작업을 데이터베이스에서 직접 수행하는 기능으로, 큐브리드는 이를 지원하지 않는다.
-- 뷰
+- **뷰**
     
     DB에 저장된 테이블로부터 생성되어 데이터베이스 상에 존재하지 않지만 테이블처럼 사용 가능한 가상 테이블이다.
     
-    ![스크린샷 2021-11-08 오전 10.20.27.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/0a72b87b-bbd4-44b4-aa86-d64a8ec0757e/스크린샷_2021-11-08_오전_10.20.27.png)
+    <img src="./05sql이미지/뷰.png">
     
     - 갱신 가능한 뷰
         - 뷰에서 UPDATE 문을 수행할 수 있게 하는 기능. 큐브리드에서는 여러가지 제약이 있지만([https://www.cubrid.org/manual/ko/11.0/sql/schema/view_stmt.html#view](https://www.cubrid.org/manual/ko/11.0/sql/schema/view_stmt.html#view)) 지원하고 있다.
@@ -426,9 +424,9 @@ samin
     - 유도 테이블이 있는 뷰
         - 유도 테이블이란 테이블에서 SELECT 연산을 해서 만든 결과를 말한다. 큐브리드에서는 뷰에서 유도테이블을 사용할 수 있다.
     
-- 조인
+- **조인**
     
-    ![스크린샷 2021-11-08 오전 10.21.01.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/e7171579-9035-4031-8509-5679bf8c004d/스크린샷_2021-11-08_오전_10.21.01.png)
+    <img src="./05sql이미지/조인.png">
     
     - 완전 외부 조인
         
@@ -442,12 +440,13 @@ samin
         - 앞서 FROM절에 나타난 테이블의 alias를 그 다음 테이블 선언에서 사용 가능하게 하는 기능이다. 큐브리드에서는 이를 지원하지 않는다.
     - join ... using
         - 이름이 동일한 칼럼을 기준으로 하는 조인이다. 큐브리드에서는 이를 지원하지 않는다.
-- 연산
+- **연산**
     
-    ![스크린샷 2021-11-08 오전 10.21.23.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/f24a1e33-580c-42fc-87da-0da9ec14f74d/스크린샷_2021-11-08_오전_10.21.23.png)
+    <img src="./05sql이미지/연산.png">
     
     - union, intersect(intersection), except(difference)
         - 셋 모두 SQL-92 표준이며 큐브리드에서는 이를 지원한다. union은 두 테이블의 합집합을 구하는 연산이다. intersect는 교집합이며, except는 차집합이다.
         - [https://www.cubrid.org/manual/ko/11.0/sql/function/stmt_set_op.html?highlight=intersect](https://www.cubrid.org/manual/ko/11.0/sql/function/stmt_set_op.html?highlight=intersect)
     - order by NULLs LAST
         - 어떤 열을 기준으로 정렬할 때 NULL은 기본적으로 첫번째 순위가 된다. 이를 마지막 순위로 변경하는 옵션이며, 큐브리드에서는 이를 지원하고 있다.
+
