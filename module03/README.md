@@ -107,37 +107,81 @@ Read Phenomena를 어디까지 허용하는지에 따라 격리 수준이 4개�
 READ UNCOMMITED (3)
 
 <table>
-  <th>허용 현상<th/>
-  <tr><td>Dirty Read<td/><tr/>
-  <tr><td>Non-Repeatable Read<td/><tr/>
-  <tr><td>Phantom Read<td/><tr/>
+  <th>현상<th/><th>허용 여부<th/>
+  <tr>
+    <td>Dirty Read<td/>
+    <td>O<td/>
+  <tr/>
+  <tr>
+    <td>Non-Repeatable Read<td/>
+    <td>O<td/>
+  <tr/>
+  <tr>
+    <td>Phantom Read<td/>
+    <td>O<td/>
+  <tr/>
 <table/>
 <br/>
 
 READ COMMITED (4)
 
 <table>
-  <th>허용 현상<th/>
-  <tr><td>Non-Repeatable Read<td/><tr/>
-  <tr><td>Phantom Read<td/><tr/>
+  <th>현상<th/><th>허용 여부<th/>
+  <tr>
+    <td>Dirty Read<td/>
+    <td>X<td/>
+  <tr/>
+  <tr>
+    <td>Non-Repeatable Read<td/>
+    <td>O<td/>
+  <tr/>
+  <tr>
+    <td>Phantom Read<td/>
+    <td>O<td/>
+  <tr/>
 <table/>
 <br/>
+
 
 READ REPEATABLE (5)
 
 <table>
-  <th>허용 현상<th/>
-  <tr><td>Phantom Read<td/><tr/>
+  <th>현상<th/><th>허용 여부<th/>
+  <tr>
+    <td>Dirty Read<td/>
+    <td>X<td/>
+  <tr/>
+  <tr>
+    <td>Non-Repeatable Read<td/>
+    <td>X<td/>
+  <tr/>
+  <tr>
+    <td>Phantom Read<td/>
+    <td>O<td/>
+  <tr/>
 <table/>
 <br/>
+
 
 SERIALIZABLE (6)
 
 <table>
-  <th>허용 현상<th/>
-  <tr><td>어느 것도 허용하지 않음<td/><tr/>
+  <th>현상<th/><th>허용 여부<th/>
+  <tr>
+    <td>Dirty Read<td/>
+    <td>X<td/>
+  <tr/>
+  <tr>
+    <td>Non-Repeatable Read<td/>
+    <td>X<td/>
+  <tr/>
+  <tr>
+    <td>Phantom Read<td/>
+    <td>X<td/>
+  <tr/>
 <table/>
-<hr/>
+<br/>
+
 
 각 격리 수준에 주어진 괄호의 숫자는 Cubrid에서의 넘버링을 의미한다. 따라서 격리 수준을 설정할 때 위 넘버링을 이용한다. SQL을 이용하여 설정하려는 경우엔 아래와 같이 작성하면 된다. 아래 구문은 격리 수준을 4인 READ COMMITED로 설정한다.
 
