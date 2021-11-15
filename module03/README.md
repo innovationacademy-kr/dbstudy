@@ -88,10 +88,21 @@ Rollback: 트랜잭션으로 묶은 연산들을 취소하여 가장 최근 Comm
 
 * Dirty Read
 
+<div style="display:flex" align="center">
+    <img src="images/dirtyread.png" alt="3" width="800"/>
+</div>
+<br/>
+
 * Non-Repeatable Read
+<div style="display:flex" align="center">
+    <img src="images/nonrepeatableread.png" alt="4" width="800"/>
+</div>
+<br/>
 
 * Phantom Read
-
+<div style="display:flex" align="center">
+    <img src="images/phantomread.png" alt="5" width="800"/>
+</div>
 <br/>
 
 ### 3. 격리 수준
