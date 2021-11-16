@@ -270,14 +270,87 @@ Cubrid의 U_LOCK은 Update, Delete의 SQL에서 사용되며, 두 종류의 질�
 
 <br/>
 
+<p style="font-weight: bold;">Order of Lock Acquisition</p>
+
+READ UNCOMMITED
+
+  * SELECT   : None
+  * UPDATE   : X_LOCK
+  * INSERT   : X_LOCK
+  * DELETE   : X_LOCK
+
+READ COMMITED
+
+  * SELECT   : S_LOCK (획득 후 연산이 끝나면 바로 해제)
+  * UPDATE   : S_LOCK --> U_LOCK --> X_LOCK
+  * INSERT   : X_LOCK
+  * DELETE   : S_LOCK --> U_LOCK --> X_LOCK
+
+READ REPEATABLE & SERIALIZABLE
+
+  * SELECT   : S_LOCK (트랜잭션의 커밋 전까지 해제하지 않음)
+  * UPDATE   : S_LOCK --> U_LOCK --> X_LOCK
+  * INSERT   : X_LOCK
+  * DELETE   : S_LOCK --> U_LOCK --> X_LOCK
+
+<br/>
+
 ### 2. 스키마 잠금 관리
 ** 스키마 잠금은 레코드 잠금에 영향을 끼치는 관계에 있다. **
 
-### 3. 키 잠금 관리
+스키마 잠금이란 테이블을 대상으로 하는 LOCK을 의미한다. 이는 레코드와 관련 있는 의도 잠금 (Intent Lock)과 DDL 조작 시 사용되는 스키마 잠금 (Schema Lock) 두 종류로 나뉘며, 편의 상 두 잠금 모두 테이블과 관련이 있기 때문에 스키마 잠금으로 분류하였다.
 
+<br/>
+
+<p style="font-weight: bold;">SCH-S & SCH-M</p>
+
+Cubrid에서는 DDL (CREATE, ALTER, DROP 등 ...) 작업에 대해서 스키마 잠금을 획득하도록 되어 있다. 스키마 잠금에는 크게 SCH-S (스키마 안정 장금), SCH-M (스키마 수정 잠금)으로 나뉜다.
+
+* SCH-S : Broker의 Query Compile 동안 획득 되며, 다른 트랜잭션이 스키마를 수정하는 것을 방지한다.
+* SCH-M : DDL을 수행하는 동안 획득되며, 다른 트랜잭션이 해당 스키마에 접근하는 것을 방지한다.
+
+<br/>
+
+<p style="font-weight: bold;">Intent Lock</p>
+
+Cubrid에서는 레코드에 대한 작업 수행 시, 레코드 보다 상위 계층인 테이블에 대해서도 잠금을 획득한다. 이를 통해 상위 계층에 대한 변경을 방지한다. 예를 들어, 특정 레코드에 X_LOCK을 획득하면 해당 레코드의 상위 계층의 테이블에서도 Intent Lock을 획득하여 테이블을 변견하지 못하도록 만든다. Intetn Lock에는 IS_LOCK (의도 공유 잠금), IX_LOCK (의도 배타 잠금), SIX_LOCK (공유 의도 배타 잠금)으로 총 3가지가 있다.
+
+* IS_LOCK   : 레코드에 S_LOCK이 걸리면 해당 레코드의 테이블에 IS_LOCK이 걸린다.
+
+      스키마 변경  X
+      모든 행 갱신 X
+      일부 행 갱신 O
+      모든 행 조회 O
+      일부 행 조회 O
+
+* IX_LOCK   : 레코드에 X_LOCK이 걸리면 해당 레코드의 테이블에 IX_LOCK이 걸린다.
+
+      스키마 변경  X
+      모든 행 갱신 X
+      일부 행 갱신 O
+      모든 행 조회 X
+      일부 행 조회 O
+
+* SIX_LOCK  :
+
+      스키마 변경  X
+      모든 행 갱신 X
+      일부 행 갱신 X
+      모든 행 조회 X
+      일부 행 조회 O
+
+<br/>
+
+### 3. Lock Escalation
+
+<br/>
+
+### 4. 키 잠금 관리
 ** 키 잠금은 레코드 잠금 및 스키마 잠금과는 무관하다. **
 
-### 4. 호환성
+<br/>
+
+### 5. 호환성
 
 잠금들의 호환 관계는 다음과 같다. 호환성이란 Lock Holder가 특정 객체에 대해 획득한 LOCK과 Locker Request가 특정 객체에 대해 요구하는 LOCK을 중복하여 얻을 수 있다는 것이다.
 
@@ -285,8 +358,9 @@ Cubrid의 U_LOCK은 Update, Delete의 SQL에서 사용되며, 두 종류의 질�
     <img src="images/lockcompatibility.png" alt="8" width="800"/>
 </div>
 
-### 5. 예시
+<br/>
 
+### 6. 예시
 
 <br/>
 
@@ -294,4 +368,4 @@ Cubrid의 U_LOCK은 Update, Delete의 SQL에서 사용되며, 두 종류의 질�
 
 ### 1. S_LOCK과 X_LOCK은 다른 디비에도 많은 것으로 확인했는데, 그렇다면 S_LOCK과 X_LOCK은 DB에선 일종의 공통된 LOCK이고, U_LOCK은 Cubrid만의 LOCK인가?
 
-### 2.
+### 2. SIX_LOCK의 역할, 목적 ... 등?
