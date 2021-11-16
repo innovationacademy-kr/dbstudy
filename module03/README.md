@@ -24,6 +24,7 @@
   + cubrid lockdb $DB-NAME
   + cubrid tranlist & cubrid killtran -i $TRAN-ID
   + Deadlock
+  + From 2 Phase Locking to MVCC
 
 <br/>
 
@@ -36,6 +37,8 @@
   + Lock Escalation 2
   + Num blocked-holders
   + Slow Query
+  + MVCC
+  + Vacuum
 
 <br/>
 
@@ -306,15 +309,15 @@
 
 <br/>
 
-#### (1) SCH-S & SCH-M
+#### (1) SCH_S & SCH_M
 
-##### Cubrid에서는 DDL (CREATE, ALTER, DROP 등 ...) 작업에 대해서 스키마 잠금을 획득하도록 되어 있다. 스키마 잠금에는 크게 SCH-S (스키마 안정 장금), SCH-M (스키마 수정 잠금)으로 나뉜다.
+##### Cubrid에서는 DDL (CREATE, ALTER, DROP 등 ...) 작업에 대해서 스키마 잠금을 획득하도록 되어 있다. 스키마 잠금에는 크게 SCH_S (스키마 안정 장금), SCH_M (스키마 수정 잠금)으로 나뉜다.
 
 <br/>
 
-##### SCH-S
+##### SCH_S
 ###### Broker의 Query Compile 동안 획득 되며, 다른 트랜잭션이 스키마를 수정하는 것을 방지한다.
-##### SCH-M
+##### SCH_M
 ###### DDL을 수행하는 동안 획득되며, 다른 트랜잭션이 해당 스키마에 접근하는 것을 방지한다.
 
 <br/>
@@ -541,6 +544,27 @@
 
 <br/>
 
+### 8. From 2 Phase Locking to MVCC
+
+##### Cubrid 10.0 이전에는 위에서 소개된 LOCK을 이용하는 2 Phase Locking 기법으로 트랜잭션의 동시성을 제어하였다. Cubrid 10.0부터는 2 Phase Locking 대신 MVCC (Multi Version Concurrency Control)을 이용하여 트랜잭션의 동시성을 제어한다.
+
+<br/>
+
+##### 2PL에서는 LOCK을 선점한 트랜잭션이 끝나기 전까지 다른 트랜잭션이 접근하는데 제약이 있었던 반면에, MVCC는 이런 문제들을 거의 겪지 않는다. MVCC는 데이터에 쓰기 연산이 이뤄질 때, 데이터에 대한 여러 버전을 생성한다. 예를 들어, A가 D0에 쓰기 작업을 수행한다고 해보자. MVCC는 A의 쓰기 연산에 대해 D1을 만들어 내고, A의 쓰기 도중에 B가 D를 읽으려 하면 D0를 읽을 수 있게 해준다. 이처럼 MVCC는 트랜잭션에서 쓰기 중인 객체에 액세스하는 것이 허용된다. MVCC는 다른 동시성 제어보다 더 적은 비용으로 진정한 Snapshot Isolation을 구현할 수 있다.
+
+<br/>
+
+##### 2PL에서 MVCC로 넘어오면서 얻을 수 있는 장점은 LOCK을 이용한 DBMS보다 빠른 처리를 기대할 수 있다는 것이다. 하지만 데이터 버전이 충돌할 가능성이 있으며, 특히 데이터 버전과 같은 불필요한 데이터들이 많이 쌓일 수 있기 때문에 주기적으로 정리해주도록 별도의 시스템이 필요하다.
+
+<br/>
+
+##### MVCC에서 불필요한 데이터를 관리하기 위한 기법은 Vacuum과 Undo Segment 총 2가지 방식이 있고, Cubrid 10.0 이후의 MVCC에서는 Vacuum을 이용한다.
+
+  * Vacuum : 데이터의 버전 내용들을 별도로 저장하고, 일정 시점마다 삭제하는 기법 (Postgre SQL, CUBRID 등)
+  * Undo Segment :  데이터의 최신 버전을 유지하되, 그 이전 버전들은 Undo Table에 보관하여 필요에 따라 필요에 따라 읽어오는 기법 (Oracle, InnoDB 등)
+
+<br/>
+
 ## 4) 궁금한 점
 
 ##### 1. S_LOCK과 X_LOCK은 다른 디비에도 많은 것으로 확인했는데, 그렇다면 S_LOCK과 X_LOCK은 DB에선 일종의 공통된 LOCK이고, U_LOCK은 Cubrid만의 LOCK인가?
@@ -573,3 +597,10 @@
 
 ##### 8. 실제 서비스에서 느린 질의가 탐지되는 경우도 있는가? 예로 어떤 것이 있는지 궁금함
 
+<br/>
+
+##### 9. MVCC를 도입하더라도 여전히 트랜잭션에 대한 LOCK은 필요하므로 X_LOCK이 이용되는 것까지는 이해되는데, S_LOCK은 거의 이용이 되지 않을 것 같다는 생각이 듬. (1) S_LOCK이 이용되는 곳이 있는지, 그리고 (2) U_LOCK은 여전히 이용이 되는지 궁금함, 그리고 (3) 스키마 잠금과 키 잠금 등도 여전히 이용되는지 궁금하고 만일 이용된다면 LOCK들이 버전별로 적용이 되는 것인지 궁금함
+
+<br/>
+
+##### 10. Vacuum이 Undo Segment 보다 어떤 장점이 있어서 Cubrid는 이를 이용하는 것인가?
