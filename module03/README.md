@@ -224,24 +224,74 @@ SERIALIZABLE (6)
 
 <br/>
 
-어느 제어 방식을 목표로 하는지에 따라 격리 수준을 달리 정하여 운용할 수 있어야 한다.
+어느 제어 방식을 목표로 하는지에 따라 격리 수준을 달리 정하여 운용할 수 있어야 한다. 단, 동시성을 제공하면서 제어를 하지 않는 경우에는 Lost Update, Dirty Read, Inconsistency, Cascading Rollback / Unrecoverability 등의 문제가 발생할 수 있다.
 
 <br/>
 
 ## 3) 잠금 관리
 
-### 1. S_LOCK
+Cubrid에서는 격리 수준에 따른 동시성들을 지원하기 위해 다양한 LOCK을 제공한다. LOCK의 대상에는 테이블, 인덱스, 레코드 등이 있으며, 대상에 따라 LOCK의 종류가 달라진다.
 
-### 2. X_LOCK
+<br/>
 
-### 3. U_LCOK
+### 1. 레코드 잠금 관리
+** 레코드 잠금은 스키마 잠금에 영향을 끼치는 관계에 있다. **
 
-### 4. 의도 잠금
+<br/>
 
-### 5. 키 잠금
+ <p style="font-weight: bold;">S_LOCK과 X_LOCK</p>
 
-### 6. 스키마 잠금
+S_LOCK은 트랜잭션이 레코드를 대상으로 읽기 연산을 수행하기 전에 획득하는 LOCK이다. 또한 S_LOCK은 특이하게도 동시 획득이 가능한 LOCK이다. 예를 들어 트랜잭션1이 먼저 S_LOCK을 획득하면 트랜잭션2 와 트랜잭션3도 S_LOCK을 획득하여 읽기 연산은 할 수 있지만, 어떠한 트랜잭션도 S_LOCK이 걸려있는 레코드에 대해 쓰기 연산은 수행할 수 없게 된다.
 
-### 7. 격리 수준 별 요약
+<br/>
 
-### 8. 예시
+X_LOCK은 레코드를 대상으로 트랜잭션의 쓰기 연산 수행을 위해 획득하는 LOCK이며, 단 하나의 트랜잭션만 획득할 수 있다. 쓰기 작업이 완료되더라도 트랜잭션의 Commit 전까지는 X_LOCK을 해제하지 않는다.
+
+<br/>
+
+<div style="display:flex" align="center">
+    <img src="images/lockconcurrency.png" alt="7" width="800"/>
+</div>
+
+위 그림과 같이 S_LOCK과 X_LOCK의 관계를 간단히 나타낼 수 있으며, 다음과 같은 사실들을 알 수 있다.
+
+    (1) 여러 트랜잭션들은 동시에 S_LOCK을 취득하여, 레코드를 동시에 읽어내는 것은 가능하다.
+    (2) X_LOCK은 쓰기 연산을 수행하려는 레코드에 대해 단 하나의 트랜잭션만 취득할 수 있다. 따라서 S_LOCK이 걸려서 트랜잭션이 읽고 있는 레코드에게 X_LOCK 취득은 불가능하고, 마찬가지로 X_LOCK이 걸려서 트랜잭션이 쓰고 있는 레코드에게 X_LOCK 취득 역시 불가능하다.
+
+<br/>
+
+<p style="font-weight: bold;">U_LOCK</p>
+
+Cubrid의 U_LOCK은 Update, Delete의 SQL에서 사용되며, 두 종류의 질의문에서 WHERE에 해당되는 레코드를 작업하는 동안 다른 트랜잭션에서 해당 레코드를 읽지 못하도록 만들기 위해 이용되는 LOCK이다. U_LOCK은 S_LOCK을 취득한 상태에서 얻을 수 있으며, U_LOCK으로 잠긴 레코드는 다른 트랜잭션에서 S_LOCK 취득이 불가능하다.
+
+<br/>
+
+예를 들어 트랜잭션1이 U_LOCK을 취득햇다면, 후에 이어지는 트랜잭션2에서는 S_LOCK 취득이 불가능하다. 다만 반대로, 트랜잭션이1이 S_LOCK을 먼저 획득한 상태이고 그 이후에 트랜잭션이2가 U_LOCK을 얻는 것은 가능하다. 이 때 트랜잭션2가 쓰기 작업을 수행하기 위해선 추가적으로 X_LOCK을 얻어야 하는데 어차피 트랜잭션1의 S_LOCK이 해제되고 나서야 X_LOCK을 얻을 수 있으므로, U_LOCK 획득 이전에 선행적으로 취득된 S_LOCK에 대해선 크게 걱정할 필요가 없다. (S_LCOK과 X_LOCK은 공존할 수 없으므로)
+
+<br/>
+
+### 2. 스키마 잠금 관리
+** 스키마 잠금은 레코드 잠금에 영향을 끼치는 관계에 있다. **
+
+### 3. 키 잠금 관리
+
+** 키 잠금은 레코드 잠금 및 스키마 잠금과는 무관하다. **
+
+### 4. 호환성
+
+잠금들의 호환 관계는 다음과 같다. 호환성이란 Lock Holder가 특정 객체에 대해 획득한 LOCK과 Locker Request가 특정 객체에 대해 요구하는 LOCK을 중복하여 얻을 수 있다는 것이다.
+
+<div style="display:flex" align="center">
+    <img src="images/lockcompatibility.png" alt="8" width="800"/>
+</div>
+
+### 5. 예시
+
+
+<br/>
+
+## 4) 궁금한 점
+
+### 1. S_LOCK과 X_LOCK은 다른 디비에도 많은 것으로 확인했는데, 그렇다면 S_LOCK과 X_LOCK은 DB에선 일종의 공통된 LOCK이고, U_LOCK은 Cubrid만의 LOCK인가?
+
+### 2.
