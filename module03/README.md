@@ -3,38 +3,43 @@
 트랜잭션
   + 의미
   + 특징
-<div style="margin-left: 40px"><h5>필요성<h5/></div>
-<div style="margin-left: 40px"><h5>Operation<h5/></div>
-<div style="margin-left: 40px"><h5>동시성 제어<h5/></div>
+  + 필요성
+  + Operation
+  + 동시성 제어
+
 <br/>
-<div>격리 수준과 일관성</div>
-<div style="margin-left: 40px"><h5>의미<h5/></div>
-<div style="margin-left: 40px"><h5>Read Phenomena<h5/></div>
-<div style="margin-left: 40px"><h5>격리 수준<h5/></div>
+
+격리 수준과 일관성
+  + 의미
+  + Read Phenomena
+  + 격리 수준
+
 <br/>
-<div>잠금 관리</div>
-<div style="margin-left: 40px"><h5>레코드 잠금 관리<h5/></div>
-<div style="margin-left: 40px"><h5>스키마 잠금 관리<h5/></div>
-<div style="margin-left: 40px"><h5>키 잠금 관리<h5/></div>
-<div style="margin-left: 40px"><h5>호환성<h5/></div>
-<div style="margin-left: 40px"><h5>cubrid lockdb $DB-NAME<h5/></div>
-<div style="margin-left: 40px"><h5>cubrid tranlist & cubrid killtran -i $TRAN-ID<h5/></div>
-<div style="margin-left: 40px"><h5>Deadlock<h5/></div>
+
+잠금 관리
+  + 레코드 잠금 관리
+  + 스키마 잠금 관리
+  + 키 잠금 관리
+  + 호환성
+  + cubrid lockdb $DB-NAME
+  + cubrid tranlist & cubrid killtran -i $TRAN-ID
+  + Deadlock
+
 <br/>
-<div>궁금한 점</div>
-<div style="margin-left: 40px"><h5>U_LOCK<h5/></div>
-<div style="margin-left: 40px"><h5>SIX_LOCK<h5/></div>
-<div style="margin-left: 40px"><h5>키 잠금과 SELECT<h5/></div>
-<div style="margin-left: 40px"><h5>키 잠금의 대상<h5/></div>
-<div style="margin-left: 40px"><h5>Lock Escalation 1<h5/></div>
-<div style="margin-left: 40px"><h5>Lock Escalation 2<h5/></div>
-<div style="margin-left: 40px"><h5>Num blocked-holders<h5/></div>
-<div style="margin-left: 40px"><h5>Slow Query<h5/></div>
+
+궁금한 점
+  + U_LOCK
+  + SIX_LOCK
+  + 키 잠금과 SELECT
+  + 키 잠금의 대상
+  + Lock Escalation 1
+  + Lock Escalation 2
+  + Num blocked-holders
+  + Slow Query
+
 <br/>
 
 ## 1) 트랜잭션 (Transaction)
-
-<hr/>
 
 ### 1. 의미 (Meaning)
 ##### 트랜잭션이란 업무적으로 의미가 있는 최소 작업 단위이자, 데이터베이스 운용에서 장애 발생 시 데이터를 복구하는 단위로 이용된다. 데이터베이스의 연산들은 SQL로 구성되기 때문에 트랜잭션은 작업 수행에 필요한 SQL들의 모임이라고 볼 수 있다.
@@ -134,8 +139,6 @@
 
 ## 2) 격리 수준과 일관성
 
-<hr/>
-
 ### 1. 의미 (Meaning)
 ##### 트랜잭션의 격리 수준이라 함은 데이터의 읽기 일관성을 어느 수준까지 보장할지를 결정 짓는 척도이며, 격리 수준에 따라 트랜잭션의 동시성이 높아질 수도 낮아질 수도 있다.
 
@@ -186,7 +189,7 @@
 
 <table>
   <tr>
-    <th>현상<th/><th>허용 여부<th/>
+    <td>현상<td/><td>허용 여부<td/>
   <tr/>
   <tr>
     <td>Dirty Read<td/>
@@ -207,7 +210,7 @@
 
 <table>
   <tr>
-    <th>현상<th/><th>허용 여부<th/>
+    <td>현상<td/><td>허용 여부<td/>
   <tr/>
   <tr>
     <td>Dirty Read<td/>
@@ -229,7 +232,7 @@
 
 <table>
   <tr>
-    <th>현상<th/><th>허용 여부<th/>
+    <td>현상<td/><td>허용 여부<td/>
   <tr/>
   <tr>
     <td>Dirty Read<td/>
@@ -251,7 +254,7 @@
 
 <table>
   <tr>
-    <th>현상<th/><th>허용 여부<th/>
+    <td>현상<td/><td>허용 여부<td/>
   <tr/>
   <tr>
     <td>Dirty Read<td/>
@@ -280,8 +283,6 @@
 <br/>
 
 ## 3) 잠금 관리
-
-<hr/>
 
 ##### Cubrid에서는 격리 수준에 따른 동시성들을 지원하기 위해 다양한 LOCK을 제공한다. LOCK의 대상에는 테이블, 인덱스, 레코드 등이 있으며, 대상에 따라 LOCK의 종류가 달라진다.
 
@@ -618,8 +619,6 @@
 <br/>
 
 ## 4) 궁금한 점
-
-<hr/>
 
 ##### 1. S_LOCK과 X_LOCK은 다른 디비에도 많은 것으로 확인했는데, 그렇다면 S_LOCK과 X_LOCK은 DB에선 일종의 공통된 LOCK이고, U_LOCK은 Cubrid만의 LOCK인가?
 
