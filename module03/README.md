@@ -19,6 +19,7 @@
 <div style="margin-left: 40px"><h5>호환성<h5/></div>
 <div style="margin-left: 40px"><h5>cubrid lockdb $DB-NAME<h5/></div>
 <div style="margin-left: 40px"><h5>cubrid tranlist & cubrid killtran -i $TRAN-ID<h5/></div>
+<div style="margin-left: 40px"><h5>Deadlock<h5/></div>
 <br/>
 <div>궁금한 점</div>
 <div style="margin-left: 40px"><h5>U_LOCK<h5/></div>
@@ -493,8 +494,7 @@
 <br/>
 
 ### 5. cubrid lockdb $DB-NAME
-
-##### `cubrid lockdb $DB-NAME`을 이용하면 (1) 시스템 상의 LOCK 관련 설정 값, (2) 데이터베이스 서버에 접속 중인 클라이언트 정보, (3) LOCK 소유 상태 등을 볼 수 있다. 해당 명령어를 활용하는 예시가 167p - 171p까지 이어져 있으니, 각 LOCK의 의미가 파악되었다면 잘 트래킹 해보는 것을 권장한다.
+##### `cubrid lockdb $DB-NAME`을 이용하면 (1) 시스템 상의 LOCK 관련 설정 값, (2) 데이터베이스 서버에 접속 중인 클라이언트 정보, (3) LOCK 소유 상태 등을 볼 수 있다. 해당 명령어를 활용하는 예시가 167p - 171p까지 이어져 있으니, 각 LOCK의 의미가 파악되었다면 직접 트래킹 해보는 것을 권장한다.
 
 <br/>
 
@@ -542,6 +542,8 @@
 <br/>
 
 ### 6. cubrid tranlist & cubrid killtran -i $TRAN-ID
+##### 두 명령어를 활용한 예시가 174p - 176에 느린 질의 탐지로 주어져 있으니 직접 트래킹 해보는 것을 권장한다.
+
 #### (1) cubrid tranlist
 ##### `cubrid tranlist`는 DBA 권한을 갖고 있는 사용자만 이용할 수 있으며, 실행 중인 트랜잭션의 목록을 포함한 트랜잭션의 상세한 정보들을 확인할 수 있다.
 
@@ -549,16 +551,36 @@
 <div style="display:flex" align="center">
     <img src="images/tranlist-1.png" alt="12" width="800"/>
 </div>
+<hr/>
+
+* ###### Tran index : 트랜잭션 아이디와 상태 (ACTIVE, RECOVERY, COMMITTED, COMMITTING, ABORTED, KILLED)
+* ###### User name : 데이터베이스 사용자 이름
+* ###### Host name : 호스트 이름
+* ###### Process id : 트랜잭션을 실행 중인 프로세스 아이디
+* ###### Program name : 트랜잭션을 실행 중인 프로세스의 이름
+
 <br/>
 
 <div style="display:flex" align="center">
     <img src="images/tranlist-2.png" alt="13" width="800"/>
 </div>
+<hr/>
+
+* ###### Query time : 수행 중인 Query의 총 수행 시간 (초 단위)
+* ###### Tram time : 현재 트랜잭션의 총 수행 시간 (초 단위)
+* ###### Wait for lock holder : LOCK을 보유하고 있는 트랜잭션의 아이디
+* ###### SQL_ID : SQL Text에 대한 아이디로 `cubrid killtran`의 `--kill-sql-id` 옵션으로 이용
+* ###### SQL Text : Query (최대 30자)
 
 <br/>
+
 <div style="display:flex" align="center">
     <img src="images/tranlist-3.png" alt="14" width="800"/>
 </div>
+<hr/>
+
+* ###### 다른 트랜잭션의 잠금을 대기하고 있는 트랜잭션의 번호와 해당 Query
+
 <br/>
 
 #### (2) cubrid killtran -i $TRAN-ID
@@ -571,6 +593,27 @@
 <br/>
 
 ##### `cubrid tranlist`를 통해 파악된 잠금 대기 유발 트랜잭션이 여럿 있다면, `-i` 옵션 뒤에 여러 개의 트랜잭션 아이디를 기재하는 것도 가능하다. Query 수행에 너무 오래 걸리는 트랜잭션들도 `cubrid tranlist`로 파악할 수 있으니 이들도 중지 시킬 수 있다.
+
+<br/>
+
+### 7. Deadlock
+##### 데이터베이스에서의 Deadlock은 둘 이상의 트랜잭션이 서로 자신이 보유하고 있는 LOCK을 놓지 않으면서, 상대방의 LOCK을 원하는 구조가 순환적으로 이뤄질 때 발생한다. Deadlock은 다음과 같은 상태를 오래 유지하는 경우 발생할 가능성이 높아진다.
+
+* ##### Query 수행이 느린 경우
+* ##### Lock Waiting의 시간이 길어지는 경우
+* ##### 한 테이블에 인덱스가 많아 키 잠금이 많아지는 경우 (177p - 179p)
+* ##### 어플리케이션의 로직에 문제가 있는 경우 (LOCK의 Partial Order가 지켜지지 않은 경우)
+
+<br/>
+
+##### 주어진 2개의 예시가 있는데, 이들의 순환 구조를 그림을 통해 이해할 수 있어야 한다. 실습을 통해 `$CUBRID/log/server`에 위치한 파일로 Deadlock이 발생했는지 확인할 수 있어야 한다.
+* ##### 2개의 트랜잭션으로 발생하는 Deadlock (181p - 184p)
+* ##### 3개의 트랜잭션으로 발생하는 Deadlock (184p - 189p)
+<hr/>
+
+###### (1) 간혹 Deadlock이 아님에도 Deadlock으로 기록이 남는 경우가 있다. 이는 시스템 상에서 동작하는 탐지 알고리즘의 한계이다.
+###### (2) 주어진 예시를 살펴보면 데이터베이스 운용 시 Deadlock은 불가필 수 밖에 없다는 것을 알 수 있다. 이 때는 가장 최근에 실행된 트랜잭션을 롤백하고 (가장 적은 구문을 실행했을 가능성이 높으므로) 에러를 반환한다. 에러를 반환한 트랜잭션은 일정 시간 뒤에 (필요한 LOCK을 보유한 트랜잭션이 LOCK을 해제하는 시간을 감안하여) 재실행된다.
+###### (3) Deadlock 발생이 불가피하더라도, 테이블의 구조, 인덱스의 구조, Query 형태의 변경 등으로 Deadlock 발생 가능성을 최대한 낮추는 노력이 필요하다.
 
 <br/>
 
@@ -607,3 +650,4 @@
 <br/>
 
 ##### 8. 실제 서비스에서 느린 질의가 탐지되는 경우도 있는가? 예로 어떤 것이 있는지 궁금함
+
