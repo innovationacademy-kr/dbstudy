@@ -466,6 +466,8 @@
 ### 6. cubrid tranlist & cubrid killtran -i $TRAN-ID
 ##### 두 명령어를 활용한 예시가 174p - 176에 느린 질의 탐지로 주어져 있으니 직접 트래킹 해보는 것을 권장한다.
 
+<br/>
+
 #### (1) cubrid tranlist
 ##### `cubrid tranlist`는 DBA 권한을 갖고 있는 사용자만 이용할 수 있으며, 실행 중인 트랜잭션의 목록을 포함한 트랜잭션의 상세한 정보들을 확인할 수 있다.
 
