@@ -1,8 +1,8 @@
 # 06. 트랜잭션과 잠금
 
-<div>트랜잭션</div>
-<div style="margin-left: 40px"><h5>의미<h5/></div>
-<div style="margin-left: 40px"><h5>특징<h5/></div>
+트랜잭션
+  + 의미
+  + 특징
 <div style="margin-left: 40px"><h5>필요성<h5/></div>
 <div style="margin-left: 40px"><h5>Operation<h5/></div>
 <div style="margin-left: 40px"><h5>동시성 제어<h5/></div>
