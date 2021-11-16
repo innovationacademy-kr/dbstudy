@@ -187,88 +187,36 @@
 
 #### READ UNCOMMITED (3)
 
-<table>
-  <tr>
-    <td>현상<td/><td>허용 여부<td/>
-  <tr/>
-  <tr>
-    <td>Dirty Read<td/>
-    <td>O<td/>
-  <tr/>
-  <tr>
-    <td>Non-Repeatable Read<td/>
-    <td>O<td/>
-  <tr/>
-  <tr>
-    <td>Phantom Read<td/>
-    <td>O<td/>
-  <tr/>
-<table/>
-<br/>
+| 현상 | 허용 여부 |
+| :---: | :---: |
+| Dirty Read | O |
+| Non-Repeatable Read | O |
+| Phantom Read | O |
 
 #### READ COMMITED (4)
 
-<table>
-  <tr>
-    <td>현상<td/><td>허용 여부<td/>
-  <tr/>
-  <tr>
-    <td>Dirty Read<td/>
-    <td>X<td/>
-  <tr/>
-  <tr>
-    <td>Non-Repeatable Read<td/>
-    <td>O<td/>
-  <tr/>
-  <tr>
-    <td>Phantom Read<td/>
-    <td>O<td/>
-  <tr/>
-<table/>
-<br/>
-
+| 현상 | 허용 여부 |
+| :---: | :---: |
+| Dirty Read | X |
+| Non-Repeatable Read | O |
+| Phantom Read | O |
 
 #### READ REPEATABLE (5)
 
-<table>
-  <tr>
-    <td>현상<td/><td>허용 여부<td/>
-  <tr/>
-  <tr>
-    <td>Dirty Read<td/>
-    <td>X<td/>
-  <tr/>
-  <tr>
-    <td>Non-Repeatable Read<td/>
-    <td>X<td/>
-  <tr/>
-  <tr>
-    <td>Phantom Read<td/>
-    <td>O<td/>
-  <tr/>
-<table/>
-<br/>
-
+| 현상 | 허용 여부 |
+| :---: | :---: |
+| Dirty Read | X |
+| Non-Repeatable Read | X |
+| Phantom Read | O |
 
 #### SERIALIZABLE (6)
 
-<table>
-  <tr>
-    <td>현상<td/><td>허용 여부<td/>
-  <tr/>
-  <tr>
-    <td>Dirty Read<td/>
-    <td>X<td/>
-  <tr/>
-  <tr>
-    <td>Non-Repeatable Read<td/>
-    <td>X<td/>
-  <tr/>
-  <tr>
-    <td>Phantom Read<td/>
-    <td>X<td/>
-  <tr/>
-<table/>
+| 현상 | 허용 여부 |
+| :---: | :---: |
+| Dirty Read | X |
+| Non-Repeatable Read | X |
+| Phantom Read | X |
+
 <br/>
 
 
@@ -380,66 +328,39 @@
 ##### IS_LOCK (의도 공유 잠금)
 ###### 레코드에 S_LOCK이 걸리면 해당 레코드의 테이블에 IS_LOCK이 걸린다.
 
-<table>
-  <tr>
-    <td><h6>스키마 변경  X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>모든 행 갱신 X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>일부 행 갱신 O<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>모든 행 조회 O<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>일부 행 조회 O<h6/><td/>
-  <tr/>
-<table/>
+| <h5>연산<h5/> | <h5>허용 여부<h5/> |
+| :---: | :---: |
+| <h5>스키마 변경<h5/> | <h5>X<h5/> |
+| <h5>모든 행 갱신<h5/> | <h5>X<h5/> |
+| <h5>일부 행 갱신<h5/> | <h5>O<h5/> |
+| <h5>모든 행 조회<h5/> | <h5>O<h5/> |
+| <h5>일부 행 조회<h5/> | <h5>O<h5/> |
+
 <br/>
 
 ##### IX_LOCK (의도 배타 잠금)
 ###### 레코드에 X_LOCK이 걸리면 해당 레코드의 테이블에 IX_LOCK이 걸린다.
 
-<table>
-  <tr>
-    <td><h6>스키마 변경  X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>모든 행 갱신 X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>일부 행 갱신 O<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>모든 행 조회 X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>일부 행 조회 O<h6/><td/>
-  <tr/>
-<table/>
+| <h5>연산<h5/> | <h5>허용 여부<h5/> |
+| :---: | :---: |
+| <h5>스키마 변경<h5/> | <h5>X<h5/> |
+| <h5>모든 행 갱신<h5/> | <h5>X<h5/> |
+| <h5>일부 행 갱신<h5/> | <h5>O<h5/> |
+| <h5>모든 행 조회<h5/> | <h5>X<h5/> |
+| <h5>일부 행 조회<h5/> | <h5>O<h5/> |
+
 <br/>
 
 ##### SIX_LOCK (공유 의도 배타 잠금)
 
-<table>
-  <tr>
-    <td><h6>스키마 변경  X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>모든 행 갱신 X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>일부 행 갱신 X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>모든 행 조회 X<h6/><td/>
-  <tr/>
-  <tr>
-    <td><h6>일부 행 조회 O<h6/><td/>
-  <tr/>
-<table/>
+| <h5>연산<h5/> | <h5>허용 여부<h5/> |
+| :---: | :---: |
+| <h5>스키마 변경<h5/> | <h5>X<h5/> |
+| <h5>모든 행 갱신<h5/> | <h5>X<h5/> |
+| <h5>일부 행 갱신<h5/> | <h5>X<h5/> |
+| <h5>모든 행 조회<h5/> | <h5>X<h5/> |
+| <h5>일부 행 조회<h5/> | <h5>O<h5/> |
+
 <br/>
 
 ### 3. 키 잠금 관리
