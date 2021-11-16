@@ -15,14 +15,20 @@
 <div>잠금 관리</div>
 <div style="margin-left: 40px"><h5>레코드 잠금 관리<h5/></div>
 <div style="margin-left: 40px"><h5>스키마 잠금 관리<h5/></div>
-<div style="margin-left: 40px"><h5>Lock Escalation<h5/></div>
 <div style="margin-left: 40px"><h5>키 잠금 관리<h5/></div>
 <div style="margin-left: 40px"><h5>호환성<h5/></div>
-<div style="margin-left: 40px"><h5>예시<h5/></div>
+<div style="margin-left: 40px"><h5>cubrid lockdb $DB-NAME<h5/></div>
+<div style="margin-left: 40px"><h5>cubrid tranlist & cubrid killtran -i $TRAN-ID<h5/></div>
 <br/>
 <div>궁금한 점</div>
 <div style="margin-left: 40px"><h5>U_LOCK<h5/></div>
 <div style="margin-left: 40px"><h5>SIX_LOCK<h5/></div>
+<div style="margin-left: 40px"><h5>키 잠금과 SELECT<h5/></div>
+<div style="margin-left: 40px"><h5>키 잠금의 대상<h5/></div>
+<div style="margin-left: 40px"><h5>Lock Escalation 1<h5/></div>
+<div style="margin-left: 40px"><h5>Lock Escalation 2<h5/></div>
+<div style="margin-left: 40px"><h5>Num blocked-holders<h5/></div>
+<div style="margin-left: 40px"><h5>Slow Query<h5/></div>
 <br/>
 
 ## 1) 트랜잭션 (Transaction)
@@ -434,25 +440,137 @@
 <table/>
 <br/>
 
-### 3. Lock Escalation
-
-<br/>
-
-### 4. 키 잠금 관리
+### 3. 키 잠금 관리
 ###### ** 키 잠금은 레코드 잠금 및 스키마 잠금과는 무관하다. **
 
 <br/>
 
-### 5. 호환성
+##### 키 잠금에서의 키는 인덱스를 의미하며, 키 잠금 자체는 인덱스를 대상으로 하는 LOCK을 의미한다. 레코드와 비슷하게, 다음 키의 공유 잠금을 NS_LOCK, 다음 키의 배타 잠금을 NX_LOCK이라 한다.
+
+<br/>
+
+##### 두 LOCK은 인덱스가 존재하는 레코드에 대해 쓰기 연산을 수행하려 할 때, 해당 연산이 영향을 주는 범위를 보호하기 위해 이용된다.
+
+<br/>
+
+##### NS_LOCK은 INSERT에 이용되고, INSERT 연산에서 자신과 다음 인덱스 값에 대해 NS_LOCK을 획득한다. INSERT 직후에는 다음 인덱스 값의 NS_LOCK은 해제되고, 자신에게 해당되는 NS_LOCK만 유지한다.
+
+<br/>
+
+##### NX_LOCK은 UPDATE 및 DELETE에 이용되고, 해당 연산에서 자신과 다음 인덱스 값에 대해서 NX_LOCK을 획득한다. NS_LOCK과 달리 연산 직후에도 두 영역에 대한 NX_LOCK은 유지된다.
+
+<br/>
+
+#### ex) 책에 제시된 인덱스의 Phantom Read와 키 잠금 이해하기
+> (1) CREATE TABLE tbl (id INT PRIMARY KEY);
+>
+> (2) INSERT INTO tbl VALUES (1), (2), (3), (20);
+>
+> (3.1) Tx1 --> DELETE FROM tbl WHERE id < 10;
+>
+> (3.2) Tx2 --> INSERT INTO tbl VALUES (8);
+>
+> (3.3) Tx2 --> Commit;
+>
+> (3.4) Tx1 --> SELECT  * FROM tbl WHERE id < 10;
+
+<br/>
+
+##### Without Key Lock : 별도의 잠금이 없기 때문에 3.2에서의 INSERT와 3.3의 Commit으로 레코드가 추가되고, 3.4에서 레코드를 조회 했을 때는 분명 10 이하의 값을 모두 지웠지만 새로운 레코드가 나타난다.
+
+<br/>
+
+##### With Key : 3.1에서 10의 다음 인덱스인 20에 대해서 NX_LOCK이 걸린다. 그리고 3.2에서 8 다음의 인덱스인 20에 대해서 NS_LOCK을 잡으려 한다. 20이라는 데이터는 이미 락이 걸린 상태이므로 트랜잭션2는 NS_LOCK을 얻기 위해 대기하고, 만일 트랜잭션1의 Commit으로 NX_LOCK이 풀리게 되면 트랜잭션2는 NS_LOCK을 취득하게 된다. 따라서 3.3의 수행이 3.4보다 늦게 이뤄지게 되므로 기존처럼 3.4에서 Phantom Read가 나타나진 않는다.
+
+<br/>
+
+### 4. 호환성
 ##### 잠금들의 호환 관계는 다음과 같다. 호환성이란 Lock Holder가 특정 객체에 대해 획득한 LOCK과 Locker Request가 특정 객체에 대해 요구하는 LOCK을 중복하여 얻을 수 있다는 것이다.
 
 <div style="display:flex" align="center">
     <img src="images/lockcompatibility.png" alt="8" width="800"/>
 </div>
+<br/>
+
+### 5. cubrid lockdb $DB-NAME
+
+##### `cubrid lockdb $DB-NAME`을 이용하면 (1) 시스템 상의 LOCK 관련 설정 값, (2) 데이터베이스 서버에 접속 중인 클라이언트 정보, (3) LOCK 소유 상태 등을 볼 수 있다. 해당 명령어를 활용하는 예시가 167p - 171p까지 이어져 있으니, 각 LOCK의 의미가 파악되었다면 잘 트래킹 해보는 것을 권장한다.
 
 <br/>
 
-### 6. 예시
+#### (1) 시스템 상의 LOCK 관련 설정 값
+
+<div style="display:flex" align="center">
+    <img src="images/lockdb-1.png" alt="9" width="800"/>
+</div>
+<hr/>
+
+* ###### Lock Escalation이란 레코드 수준 잠금을 테이블 수준 잠금으로 대체하는 것을 말한다. 레코드 수준의 잠금은 키 잠금을 포함하는데, 해당 값이 Lock Escalation에 설정된 값을 초과하게 되면 테이블 수준 잠금으로 바뀐다. 이는 레코드 수준의 잠금이 많아지면 이를 관리하는데 부담이 커지고 성능을 저하시킬 수 있기 때문이다. 한 트랜잭션만 테이블을 이용할 수 있게 만들어서 잠금 관리의 부담을 줄이는 것이다. 이 때, 테이블 당 수행되는 트랜잭션은 하나가 되므로 동시성은 Lock Escalation이 설정되기 전보다 떨어지게 된다.
+* ###### Run Deadlock Interval은 교착 상태 탐지 주기를 의미한다. 단위는 초이다.
+
+<br/>
+
+#### (2) 데이터베이스 서버에 접속 중인 클라이언트 정보
+
+<div style="display:flex" align="center">
+    <img src="images/lockdb-2.png" alt="10" width="800"/>
+</div>
+<hr/>
+
+* ###### Isolation : 트랜잭션의 격리 수준
+* ###### State : 트랜잭션의 상태
+* ###### Timeout_period : 잠금 대기 시간 설정 값 (cubrid.conf에서 lock_timeout으로 설정됨, 기본 값은 -1로 무한 대기)
+* ###### 클라이언트는 유틸리티, csql 뿐만 아니라 CAS도 포함된다.
+
+<br/>
+
+#### (3) 객체 잠금 상태
+<div style="display:flex" align="center">
+    <img src="images/lockdb-3.png" alt="11" width="800"/>
+</div>
+<hr/>
+
+* ###### Current number of objects which are locked : 데이터베이스가 보유 중인  잠금 수
+* ###### OID = x | y | z : 볼륨 번호 | 페이지 번호 | 슬롯 번호 (볼륨 번호가 음수로 주어지면 인덱스 번호를 의미)
+* ###### Object type : Class (테이블), Index (인덱스), 레코드 (Instance)로 분류
+* ###### Num holders : 객체의 잠금 보유 수
+* ###### Num blocked-holders : 잠금을 보유하고 있지만 상위 객체에 의해 차단된 잠금 수
+* ###### Num waiters : 잠금 대기 수
+* ###### LOCK HOLDERS : 잠금 보유자
+* ###### LOCK WAITERS : 잠금 대기자
+
+<br/>
+
+### 6. cubrid tranlist & cubrid killtran -i $TRAN-ID
+#### (1) cubrid tranlist
+##### `cubrid tranlist`는 DBA 권한을 갖고 있는 사용자만 이용할 수 있으며, 실행 중인 트랜잭션의 목록을 포함한 트랜잭션의 상세한 정보들을 확인할 수 있다.
+
+<br/>
+<div style="display:flex" align="center">
+    <img src="images/tranlist-1.png" alt="12" width="800"/>
+</div>
+<br/>
+
+<div style="display:flex" align="center">
+    <img src="images/tranlist-2.png" alt="13" width="800"/>
+</div>
+
+<br/>
+<div style="display:flex" align="center">
+    <img src="images/tranlist-3.png" alt="14" width="800"/>
+</div>
+<br/>
+
+#### (2) cubrid killtran -i $TRAN-ID
+##### `cubrid tranlist`를 이용하여 파악된 잠금을 보유하고 있는 트랜잭션을 `cubrid killtran`을 이용하여 중지시킬 수 있다. 이를 통해 트랜잭션이 보유하고 있는 잠금을 해제시킬 수 있다. `-i` 옵션의 인자로 트랜잭션의 아이디를 이용하면 된다.
+
+<br/>
+<div style="display:flex" align="center">
+    <img src="images/killtran.png" alt="15" width="800"/>
+</div>
+<br/>
+
+##### `cubrid tranlist`를 통해 파악된 잠금 대기 유발 트랜잭션이 여럿 있다면, `-i` 옵션 뒤에 여러 개의 트랜잭션 아이디를 기재하는 것도 가능하다. Query 수행에 너무 오래 걸리는 트랜잭션들도 `cubrid tranlist`로 파악할 수 있으니 이들도 중지 시킬 수 있다.
 
 <br/>
 
@@ -460,8 +578,32 @@
 
 <hr/>
 
-#### 1. S_LOCK과 X_LOCK은 다른 디비에도 많은 것으로 확인했는데, 그렇다면 S_LOCK과 X_LOCK은 DB에선 일종의 공통된 LOCK이고, U_LOCK은 Cubrid만의 LOCK인가?
+##### 1. S_LOCK과 X_LOCK은 다른 디비에도 많은 것으로 확인했는데, 그렇다면 S_LOCK과 X_LOCK은 DB에선 일종의 공통된 LOCK이고, U_LOCK은 Cubrid만의 LOCK인가?
 
 <br/>
 
-#### 2. SIX_LOCK의 역할, 목적 ... 등?
+##### 2. SIX_LOCK의 정확한 역할 및 사용 시점
+
+<br/>
+
+##### 3. 키 잠금 중 SELECT 관련 락은 없던데, 이는 왜 없는가?
+
+<br/>
+
+##### 4. 키 잠금의 예시를 보면 인덱스가 적용된 데이터에 대해서 키 잠금이 이뤄지는 것처럼 나타나 있다. 인덱스 역시 일반 데이터들처럼 별도의 볼륨으로 유지되고 있는 것으로 알고 있는데, 키 잠금은 인덱스 볼륨을 대상으로 하는지 혹은 일반 볼륨을 대상으로 이뤄지는지 궁금함
+
+<br/>
+
+##### 5. Lock Escalation으로 올라간 잠금 수준은 언제 떨어지고 어떻게 모니터링 되는가?
+
+<br/>
+
+##### 6. Lock Escalation으로 잠금 수준이 올라가면 부하를 줄이기 위해 동시성을 희생하는 것으로 이해를 했는데, 그렇다면 이 때 계속해서 많은 트랜잭션이 들어오면 끝까지 잠금 수준의 회복이 안 되는가?
+
+<br/>
+
+##### 7. Num blocked-holders에서 상위 객체란 무엇을 의미하고, 상위 객체에 의해 차단되는 상황이란 무엇인지 궁금함
+
+<br/>
+
+##### 8. 실제 서비스에서 느린 질의가 탐지되는 경우도 있는가? 예로 어떤 것이 있는지 궁금함
