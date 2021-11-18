@@ -29,9 +29,9 @@
 <br/>
 
 궁금한 점
-  + U_LOCK
+  + U_LOCK 1
+  + U_LOCK 2
   + SIX_LOCK
-  + 키 잠금과 SELECT
   + 키 잠금의 대상
   + Lock Escalation 1
   + Lock Escalation 2
@@ -39,6 +39,8 @@
   + Slow Query
   + MVCC
   + Vacuum
+  + Vacuum Cleanup
+  + Cursor
 
 <br/>
 
@@ -571,11 +573,11 @@
 
 <br/>
 
-##### 2. SIX_LOCK의 정확한 역할 및 사용 시점
+##### 2. U_LOCK을 얻기 위해 S_LOCK을 먼저 가져야 하는 구체적인 이유?
 
 <br/>
 
-##### 3. 키 잠금 중 SELECT 관련 락은 없던데, 이는 왜 없는가?
+##### 3. SIX_LOCK의 정확한 역할 및 사용 시점
 
 <br/>
 
@@ -604,3 +606,9 @@
 <br/>
 
 ##### 10. Vacuum이 Undo Segment 보다 어떤 장점이 있어서 Cubrid는 이를 이용하는 것인가?
+
+<br/>
+
+##### 11. MVCC에서 이전 데이터를 제거하고 점유된 공간을 재사용하기 위해 자동으로 회수(Cleanup)하는 시스템에 대해서 어떤 기준으로 이뤄지는가?
+
+##### 12. Cursors Holdability : Commit 이후에 SELECT 질의 결과의 레코드 셋을 유지하여 다음 레코드를 읽을(Fetch) 수 있도록 하는 것이라고 찾을 수 있었고, 여기에 덧붙여, 연결 수준 또는 문장 수준으로 커서 유지 기능을 설정할 수 있다라고 나와있는데 커서가 필요한 이유에 대해서 궁금함
