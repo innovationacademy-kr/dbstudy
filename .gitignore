@@ -50,3 +50,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Non-source files
+.DS_Store
+.Thumbs.db
