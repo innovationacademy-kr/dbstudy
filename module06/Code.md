@@ -348,6 +348,153 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
 
 <br/>
 
+### dwb_flush_block
+
+```cpp
+/*
+ * dwb_block_create_ordered_slots () - Create ordered slots from block slots.
+ *
+ * return   : Error code.
+ * block(in): The block.
+ * p_dwb_ordered_slots(out): The ordered slots.
+ * p_ordered_slots_length(out): The ordered slots array length.
+ */
+STATIC_INLINE int
+dwb_block_create_ordered_slots (DWB_BLOCK * block, DWB_SLOT ** p_dwb_ordered_slots,
+				unsigned int *p_ordered_slots_length)
+{
+  DWB_SLOT *p_local_dwb_ordered_slots = NULL;
+
+  assert (block != NULL && p_dwb_ordered_slots != NULL);
+
+  /* including sentinel */
+  p_local_dwb_ordered_slots = (DWB_SLOT *) malloc ((block->count_wb_pages + 1) * sizeof (DWB_SLOT));
+> block의 count_wb_pages + 1 만큼 할당된 DWB_SLOT 배열 생성 (마지막은 NULL)
+  if (p_local_dwb_ordered_slots == NULL)
+    {
+      er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_OUT_OF_VIRTUAL_MEMORY, 1,
+	      (block->count_wb_pages + 1) * sizeof (DWB_SLOT));
+      return ER_OUT_OF_VIRTUAL_MEMORY;
+    }
+
+  memcpy (p_local_dwb_ordered_slots, block->slots, block->count_wb_pages * sizeof (DWB_SLOT));
+> block->slot을 p_local_dwb_ordered_slots로 block->count_wb_pages만큼 복사
+
+  /* init sentinel slot */
+  dwb_init_slot (&p_local_dwb_ordered_slots[block->count_wb_pages]);
+> p_local_dwb_ordered_slots의 마지막 초기화 (page = NULL)
+
+  /* Order pages by (VPID, LSA) */
+  qsort ((void *) p_local_dwb_ordered_slots, block->count_wb_pages, sizeof (DWB_SLOT), dwb_compare_slots);
+> 퀵정렬로 p_local_dwb_ordered_slots의 마지막 요소를 제외하고 정렬
+> 정렬기준은 vpid.volid(volume identifier), vpid.pageid, lsa.pageid, lsa.offset 순입니다.
+
+  *p_dwb_ordered_slots = p_local_dwb_ordered_slots;
+  *p_ordered_slots_length = block->count_wb_pages + 1;
+> 포인터를 이용해 out
+
+  return NO_ERROR;
+}
+
+
+/*
+ * dwb_flush_block () - Flush pages from specified block.
+ *
+ * return   : Error code.
+ * thread_p (in): Thread entry.
+ * block(in): The block that needs flush.
+ * file_sync_helper_can_flush(in): True, if file sync helper thread can flush.
+ * current_position_with_flags(out): Current position with flags.
+ *
+ *  Note: The block pages can't be modified by others during flush.
+ */
+STATIC_INLINE int
+dwb_flush_block (THREAD_ENTRY * thread_p, DWB_BLOCK * block, bool file_sync_helper_can_flush,
+		 UINT64 * current_position_with_flags)
+{
+  UINT64 local_current_position_with_flags, new_position_with_flags;
+  int error_code = NO_ERROR;
+  DWB_SLOT *p_dwb_ordered_slots = NULL;
+  unsigned int i, ordered_slots_length;
+  PERF_UTIME_TRACKER time_track;
+  int num_pages;
+  unsigned int current_block_to_flush, next_block_to_flush;
+  int max_pages_to_sync;
+#if defined (SERVER_MODE)
+  bool flush = false;
+  PERF_UTIME_TRACKER time_track_file_sync_helper;
+#endif
+#if !defined (NDEBUG)
+  DWB_BLOCK *saved_file_sync_helper_block = NULL;
+  LOG_LSA nxio_lsa;
+#endif
+
+  assert (block != NULL && block->count_wb_pages > 0 && dwb_is_created ());
+
+  PERF_UTIME_TRACKER_START (thread_p, &time_track);
+> 시간 기록
+
+  /* Currently we allow only one block to be flushed. */
+  ATOMIC_INC_32 (&dwb_Global.blocks_flush_counter, 1);
+>>> ++dwb_Global.blocks_flush_counter;
+
+  assert (dwb_Global.blocks_flush_counter <= 1);
+> 한번에 하나의 블록만 flush 가능하므로 1보다 크면 crash
+
+  /* Order slots by VPID, to flush faster. */
+  error_code = dwb_block_create_ordered_slots (block, &p_dwb_ordered_slots, &ordered_slots_length);
+>> dwb_block_create_ordered_slots 위쪽에 추가 설명
+  if (error_code != NO_ERROR)
+    {
+      error_code = ER_FAILED;
+      goto end;
+    }
+
+  /* Remove duplicates */
+> 같은 페이지를 중복 flush 하지 않기 위해서 중복되는 slot을 제거
+  for (i = 0; i < block->count_wb_pages - 1; i++)
+    {
+      DWB_SLOT *s1, *s2;
+
+      s1 = &p_dwb_ordered_slots[i];
+      s2 = &p_dwb_ordered_slots[i + 1];
+
+      assert (s1->io_page->prv.p_reserve_2 == 0);
+
+      if (!VPID_ISNULL (&s1->vpid) && VPID_EQ (&s1->vpid, &s2->vpid))
+>     s1->vpid의 pageid가 NULL_PAGEID가 아니고, s1과 s2의 요소들이 모두 같다면
+	{
+	  assert (LSA_LE (&s1->lsa, &s2->lsa));
+
+> s2 슬롯에 동일한 페이지가 포함되어 있고, 더 최신이므로 s1을 버립니다
+	  VPID_SET_NULL (&s1->vpid);
+
+	  assert (s1->position_in_block < DWB_BLOCK_NUM_PAGES);
+	  VPID_SET_NULL (&(block->slots[s1->position_in_block].vpid));
+
+	  fileio_initialize_res (thread_p, s1->io_page, IO_PAGESIZE);
+> s1->io_page의 모든 요소를 초기화합니다
+	}
+
+      /* Check for WAL protocol. */
+#if !defined (NDEBUG)
+      if (s1->io_page->prv.pageid != NULL_PAGEID && logpb_need_wal (&s1->io_page->prv.lsa))
+	{
+	  /* Need WAL. Check whether log buffer pool was destroyed. */
+	  nxio_lsa = log_Gl.append.get_nxio_lsa ();
+	  assert (LSA_ISNULL (&nxio_lsa));
+	}
+#endif
+    }
+    
+    
+    
+    ....
+    이 함수를 마지막으로 분석했는데, 시간이 없어서 이 함수는 여기까지 밖에 못 했습니다..
+```
+
+
+
 ## dwb_ends_structure_modification
 
 *storage/double_write_buffer.c: 909*
