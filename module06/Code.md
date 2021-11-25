@@ -156,7 +156,7 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
   int error_code = NO_ERROR;
 
   error_code = dwb_starts_structure_modification(thread_p, &current_position_with_flags);
->> bit 플래그 세팅, dwb 초기화
+>> 구조 변경 시작, bit 플래그 세팅, dwb 초기화
 
   if (error_code != NO_ERROR)
   {
@@ -188,7 +188,7 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
 end:
   /* Ends the modification, allowing to others to modify global position with flags. */
   dwb_ends_structure_modification(thread_p, current_position_with_flags);
->> bit 플래그 세팅, 이 스레드의 점유 상태를 해제하고 시그널을 통해 wait_queue에 있는 다음 스레드를 깨움
+>> 구조 변경 종료, bit 플래그 세팅, 이 스레드의 점유 상태를 해제하고 wait_queue에 있는 다음 스레드를 깨움
 
   return error_code;
 }
@@ -227,20 +227,32 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
 >>>   local_current_position_with_flags = dwb_Global.position_with_flags;
 
       if (DWB_IS_MODIFYING_STRUCTURE (local_current_position_with_flags))
->>>
+>     만약 local_current_position_with_flags 에 DWB_MODIFY_STRUCTURE 플래그가 세워져있다면
 	{
-	  /* Only one thread can change the structure */
+	  /* 오직 하나의 스레드만 구조체에 영향을 줄 수 있기 때문에 에러처리 */
 	  return ER_FAILED;
 	}
 
       new_position_with_flags = DWB_STARTS_MODIFYING_STRUCTURE (local_current_position_with_flags);
+>     DWB_MODIFY_STRUCTURE 플래그를 set
+
       /* Start structure modifications, the threads that want to flush afterwards, have to wait. */
     }
   while (!ATOMIC_CAS_64 (&dwb_Global.position_with_flags, local_current_position_with_flags, new_position_with_flags));
+> dwb_Global.position_with_flags 값과 local_current_position_with_flags값이 같으면,
+  new_position_with_flags를 할당하고 true를 반환
+> 같지 않으면 false를 반환
+
+> 아마도 다른 스레드가 위 코드를 거의 동시에 시작한 경우,
+  while 에 늦게 도착한 스레드는 코드를 다시 실행하고 DWB_MODIFY_STRUCTURE 플래그가 세워져 있기 때문에 에러처리
+
 
 #if defined(SERVER_MODE)
   while ((ATOMIC_INC_32 (&dwb_Global.blocks_flush_counter, 0) > 0)
 	 || dwb_flush_block_daemon_is_running () || dwb_file_sync_helper_daemon_is_running ())
+>>> while (dwb_Global.blocks_flush_counter > 0
+	 || dwb_flush_block_daemon_is_running() || dwb_file_sync_helper_daemon_is_running())
+> flush thread가 dwb에 접근 중일 때는 구조를 변경할 수 없으므로 flush가 끝날 때까지 대기
     {
       /* Can't modify structure while flush thread can access DWB. */
       thread_sleep (20);
