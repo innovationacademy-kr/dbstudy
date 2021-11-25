@@ -14,7 +14,7 @@ dwb_create (thread_p, log_path, log_prefix)
 
 ## dwb_create
 
-*storage/double_write_buffer.c: 2821*
+*storage/double_write_buffer.c: 2820*
 
 ```cpp
 /*
