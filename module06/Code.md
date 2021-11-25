@@ -294,7 +294,8 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
 	}
     }
     
-> DWB_IS_BLOCK_WRITE_STARTED(local_current_position_with_flags, block_no) = (local_current_position_with_flags) & (1ULL << (63 - (block_no)))) != 0
+> DWB_IS_BLOCK_WRITE_STARTED(local_current_position_with_flags, block_no)
+       = (local_current_position_with_flags) & (1ULL << (63 - (block_no)))) != 0
 > local_current_position_with_flags 에서 오른쪽 방향으로 block_no 번째 bit가 set되어 있으면 true, clear되어있으면 false를 반환
  
     
