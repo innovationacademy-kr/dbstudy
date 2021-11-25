@@ -240,7 +240,7 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
     }
   while (!ATOMIC_CAS_64 (&dwb_Global.position_with_flags, local_current_position_with_flags, new_position_with_flags));
 > dwb_Global.position_with_flags 값과 local_current_position_with_flags값이 같으면,
-  new_position_with_flags를 할당하고 true를 반환
+  dwb_Global.position_with_flag에 new_position_with_flags를 할당하고 true를 반환
 > 같지 않으면 false를 반환
 
 > 아마도 다른 스레드가 위 코드를 거의 동시에 시작한 경우,
@@ -265,19 +265,25 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
     {
       /* All remaining blocks are flushed by me. */
       (void) ATOMIC_TAS_ADDR (&dwb_Global.file_sync_helper_block, (DWB_BLOCK *) NULL);
+>>>   dwb_Global.file_sync_helper_block = NULL;
+
       dwb_log ("Structure modification, needs to flush DWB block = %d having version %lld\n",
 	       file_sync_helper_block->block_no, file_sync_helper_block->version);
     }
 
   local_current_position_with_flags = ATOMIC_INC_64 (&dwb_Global.position_with_flags, 0ULL);
+>>> local_current_position_with_flags = dwb_Global.position_with_flags
 
   /* Need to flush incomplete blocks, ordered by version. */
   start_block_no = DWB_NUM_TOTAL_BLOCKS;
   min_version = 0xffffffffffffffff;
+> 어떤 block의 version 보다 무조건 크도록 설정
+
   blocks_count = 0;
   for (block_no = 0; block_no < DWB_NUM_TOTAL_BLOCKS; block_no++)
     {
       if (DWB_IS_BLOCK_WRITE_STARTED (local_current_position_with_flags, block_no))
+>     MSB 부터 정방향으로 체크
 	{
 	  if (dwb_Global.blocks[block_no].version < min_version)
 	    {
@@ -287,15 +293,21 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
 	  blocks_count++;
 	}
     }
-
+    
+> DWB_IS_BLOCK_WRITE_STARTED(local_current_position_with_flags, block_no) = (local_current_position_with_flags) & (1ULL << (63 - (block_no)))) != 0
+> local_current_position_with_flags 에서 오른쪽 방향으로 block_no 번째 bit가 set되어 있으면 true, clear되어있으면 false를 반환
+ 
+    
   block_no = start_block_no;
   while (blocks_count > 0)
     {
       if (DWB_IS_BLOCK_WRITE_STARTED (local_current_position_with_flags, block_no))
+>     위와 같음. 오른쪽 방향으로 block_no 번째 비트가 set되어있으면 
 	{
 	  /* Flush all pages from current block. I must flush all remaining data. */
 	  error_code =
 	    dwb_flush_block (thread_p, &dwb_Global.blocks[block_no], false, &local_current_position_with_flags);
+>        블록에 남아있는 데이터 flush
 	  if (error_code != NO_ERROR)
 	    {
 	      /* Something wrong happened. */
@@ -307,15 +319,21 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
 
 	  dwb_log_error ("DWB flushed %d block having version %lld\n", block_no, dwb_Global.blocks[block_no].version);
 	  blocks_count--;
+>         flush 이후 flush 가 필요한 블록 카운트 -1
 	}
 
       block_no = (block_no + 1) % DWB_NUM_TOTAL_BLOCKS;
+>     결과적으로 version이 가장 낮은 블록부터 오른쪽으로 순회, 인덱스 끝에 닿으면 다시 0으로 돌아와서 순회.
     }
 
   local_current_position_with_flags = ATOMIC_INC_64 (&dwb_Global.position_with_flags, 0ULL);
+>>> local_current_position_with_flags = dwb_Global.position_with_flags
+
   assert (DWB_GET_BLOCK_STATUS (local_current_position_with_flags) == 0);
+> flush에 실패한 block이 있을 경우, crash
 
   *current_position_with_flags = local_current_position_with_flags;
+> 포인터 매개변수를 통해 out
 
   return NO_ERROR;
 }
