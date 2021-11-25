@@ -10,6 +10,17 @@ dwb_create (thread_p, log_path, log_prefix)
 => createdb
 ```
 
+```cpp
+/* Create double write buffer if not already created. DWB creation must be done before first volume.
+ * DWB file is created on log_path.
+ */
+if (dwb_create(thread_p, log_path, log_prefix) != NO_ERROR)
+{
+  goto error;
+}
+```
+
+
 <br/>
 
 ## dwb_create
@@ -31,6 +42,8 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
   int error_code = NO_ERROR;
 
   error_code = dwb_starts_structure_modification(thread_p, &current_position_with_flags);
+>> bit 플래그 세팅, dwb 초기화
+
   if (error_code != NO_ERROR)
   {
     dwb_log_error("Can't create DWB: error = %d\n", error_code);
@@ -56,6 +69,7 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
 end:
   /* Ends the modification, allowing to others to modify global position with flags. */
   dwb_ends_structure_modification(thread_p, current_position_with_flags);
+>> 플래그 세팅, 이 스레드의 점유 상태를 해제하고 시그널을 통해 wait_queue에 있는 다음 스레드를 깨움
 
   return error_code;
 }
