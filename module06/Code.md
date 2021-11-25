@@ -58,6 +58,10 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
   }
 
   fileio_make_dwb_name(dwb_Volume_name, dwb_path_p, db_name_p);
+> 만약 dwb_path_p가 /로 끝나는 경우
+> *dwb_Volume_name = "[dwb_path_p][db_name_p]_dwb";
+> /가 없는 경우
+> *dwb_Volume_name = "[dwb_path_p]/[db_name_p]_dwb";
 
   error_code = dwb_create_internal(thread_p, dwb_Volume_name, &current_position_with_flags);
   if (error_code != NO_ERROR)
@@ -69,7 +73,7 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
 end:
   /* Ends the modification, allowing to others to modify global position with flags. */
   dwb_ends_structure_modification(thread_p, current_position_with_flags);
->> 플래그 세팅, 이 스레드의 점유 상태를 해제하고 시그널을 통해 wait_queue에 있는 다음 스레드를 깨움
+>> bit 플래그 세팅, 이 스레드의 점유 상태를 해제하고 시그널을 통해 wait_queue에 있는 다음 스레드를 깨움
 
   return error_code;
 }
