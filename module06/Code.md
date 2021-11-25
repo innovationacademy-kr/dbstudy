@@ -1,3 +1,40 @@
+## dwb_Global
+```cpp
+/* The double write buffer structure. */
+typedef struct double_write_buffer DOUBLE_WRITE_BUFFER;
+struct double_write_buffer
+{
+  DWB_BLOCK *blocks;		/* block array */
+  unsigned int num_blocks;	/* The total number of blocks */
+  unsigned int num_pages;	/* The total number of pages */
+  unsigned int num_block_pages;	/* The number of pages in a block */
+  
+  pthread_mutex_t mutex;	/* The mutex to protect the wait queue. */
+  DWB_WAIT_QUEUE wait_queue;	/* The wait queue, used when the DWB structure changed. */
+
+  UINT64 volatile position_with_flags;	/* The current position in double write buffer and flags. Flags keep the
+					 * state of each block (started, ended), create DWB status, modify DWB status.
+					 */
+					 
+		 ...
+};
+
+/* DWB. */
+static DOUBLE_WRITE_BUFFER dwb_Global;
+```
+
+<br/>
+
+## position_with_flags
+
+```cpp
+00000000 00000000 00000000 00000000  00001000 00000000 00000000 00000000 : DWB_MODIFY_STRUCTURE
+00000000 00000000 00000000 00000000  00000100 00000000 00000000 00000000 : DWB_CREATE
+```
+
+<br/>
+
+
 ## 몇가지 함수들
 
 ### ATOMIC_INC_64
@@ -187,7 +224,10 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
   do
     {
       local_current_position_with_flags = ATOMIC_INC_64 (&dwb_Global.position_with_flags, 0ULL);
+>>>   local_current_position_with_flags = dwb_Global.position_with_flags;
+
       if (DWB_IS_MODIFYING_STRUCTURE (local_current_position_with_flags))
+>>>
 	{
 	  /* Only one thread can change the structure */
 	  return ER_FAILED;
