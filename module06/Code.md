@@ -142,6 +142,11 @@ if (dwb_create(thread_p, log_path, log_prefix) != NO_ERROR)
 *storage/double_write_buffer.c: 2820*
 
 ```cpp
+/* global variable */
+/* DWB volume name. */
+char dwb_Volume_name[256];
+
+
 /*
  * dwb_create () - Create DWB.
  *
@@ -166,6 +171,7 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
 
   /* DWB structure modification started, no other transaction can modify the global position with flags */
   if (DWB_IS_CREATED(current_position_with_flags))
+> current_position_with_flags에 DWB_CREATE 가 set 되어 있다면
   {
     /* Already created, restore the modification flag. */
     goto end;
@@ -178,7 +184,7 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
 > *dwb_Volume_name = "[dwb_path_p]/[db_name_p]_dwb";
 
   error_code = dwb_create_internal(thread_p, dwb_Volume_name, &current_position_with_flags);
->> 설명하지 않음
+>> 설명하지 않음. 아마도 dwb_Global의 실질적 할당/초기화 부분
   if (error_code != NO_ERROR)
   {
     dwb_log_error("Can't create DWB: error = %d\n", error_code);
@@ -337,5 +343,122 @@ dwb_starts_structure_modification (THREAD_ENTRY * thread_p, UINT64 * current_pos
 > 포인터 매개변수를 통해 out
 
   return NO_ERROR;
+}
+```
+
+<br/>
+
+## dwb_ends_structure_modification
+
+*storage/double_write_buffer.c: 909*
+
+```cpp
+/*
+ * dwb_ends_structure_modification () - Ends structure modifications.
+ *
+ * return   : Error code.
+ * thread_p (in): The thread entry.
+ * current_position_with_flags(in): The current position with flags.
+ */
+STATIC_INLINE void
+dwb_ends_structure_modification (THREAD_ENTRY * thread_p, UINT64 current_position_with_flags)
+{
+  UINT64 new_position_with_flags;
+
+  new_position_with_flags = DWB_ENDS_MODIFYING_STRUCTURE (current_position_with_flags);
+> 구조 변경을 마쳤으므로 DWB_MODIFY_STRUCTURE를 clear
+
+  /* Ends structure modifications. */
+  assert (dwb_Global.position_with_flags == current_position_with_flags);
+
+  ATOMIC_TAS_64 (&dwb_Global.position_with_flags, new_position_with_flags);
+>>> dwb_Global.position_with_flags = new_position_with_flags
+
+  /* Signal the other threads. */
+  dwb_signal_structure_modificated (thread_p);
+}
+```
+
+### dwb_signal_structure_modificated
+
+```cpp
+/*
+ * dwb_remove_wait_queue_entry () - Remove the wait queue entry.
+ *
+ * return   : True, if entry removed, false otherwise.
+ * wait_queue (in/out): The wait queue.
+ * mutex (in): The mutex to protect the wait queue.
+ * data (in): The data.
+ * func(in): The function to apply on each entry.
+ *
+ *  Note: If the data is NULL, the first entry will be removed.
+ */
+STATIC_INLINE void
+dwb_remove_wait_queue_entry (DWB_WAIT_QUEUE * wait_queue, pthread_mutex_t * mutex, void *data, int (*func) (void *))
+{
+  DWB_WAIT_QUEUE_ENTRY *wait_queue_entry = NULL;
+
+  if (mutex != NULL)
+> NULL 이므로 실행되지 않음
+    {
+      (void) pthread_mutex_lock (mutex);
+    }
+
+  wait_queue_entry = dwb_block_disconnect_wait_queue_entry (wait_queue, data);
+> data가 NULL이므로 이 경우 NULL 반환, 따라서 아래 코드도 실행되지 않음
+  if (wait_queue_entry != NULL)
+    {
+      dwb_block_free_wait_queue_entry (wait_queue, wait_queue_entry, func);
+    }
+
+  if (mutex != NULL)
+    {
+      pthread_mutex_unlock (mutex);
+    }
+}
+
+
+/*
+ * dwb_signal_waiting_threads () - Signal waiting threads.
+ *
+ * return   : Nothing.
+ * wait_queue (in/out): The wait queue.
+ * mutex(in): The mutex to protect the queue.
+ */
+STATIC_INLINE void
+dwb_signal_waiting_threads (DWB_WAIT_QUEUE * wait_queue, pthread_mutex_t * mutex)
+{
+  assert (wait_queue != NULL);
+
+  if (mutex != NULL)
+    {
+      (void) pthread_mutex_lock (mutex);
+> mutex를 소유할때까지 대기
+    }
+
+  while (wait_queue->head != NULL)
+    {
+      dwb_remove_wait_queue_entry (wait_queue, NULL, NULL, dwb_signal_waiting_thread);
+    }
+
+  if (mutex != NULL)
+    {
+      pthread_mutex_unlock (mutex);
+> mutex를 unlock
+    }
+}
+
+
+/*
+ * dwb_signal_structure_modificated () - Signal DWB structure changed.
+ *
+ * return   : Nothing.
+ * thread_p (in): The thread entry.
+ */
+STATIC_INLINE void
+dwb_signal_structure_modificated (THREAD_ENTRY * thread_p)
+{
+  /* There are blocked threads. Destroy the wait queue and release the blocked threads. */
+  dwb_signal_waiting_threads (&dwb_Global.wait_queue, &dwb_Global.mutex);
 }
 ```
