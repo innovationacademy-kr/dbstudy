@@ -64,6 +64,7 @@ int dwb_create(THREAD_ENTRY *thread_p, const char *dwb_path_p, const char *db_na
 > *dwb_Volume_name = "[dwb_path_p]/[db_name_p]_dwb";
 
   error_code = dwb_create_internal(thread_p, dwb_Volume_name, &current_position_with_flags);
+>> 설명하지 않음
   if (error_code != NO_ERROR)
   {
     dwb_log_error("Can't create DWB: error = %d\n", error_code);
