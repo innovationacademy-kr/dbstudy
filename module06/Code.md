@@ -5,10 +5,7 @@ typedef struct double_write_buffer DOUBLE_WRITE_BUFFER;
 struct double_write_buffer
 {
   DWB_BLOCK *blocks;		/* block array */
-  unsigned int num_blocks;	/* The total number of blocks */
-  unsigned int num_pages;	/* The total number of pages */
-  unsigned int num_block_pages;	/* The number of pages in a block */
-  
+
   pthread_mutex_t mutex;	/* The mutex to protect the wait queue. */
   DWB_WAIT_QUEUE wait_queue;	/* The wait queue, used when the DWB structure changed. */
 
