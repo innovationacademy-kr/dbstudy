@@ -8,5 +8,7 @@ Cubrid DB study
 * [07. 백업과 복구](module04/README.md)
 
 ## Phase 2
+* [Disk Manager](module05/README.md)
+* [Double Write Buffer](module06/README.md)
 
 ## Phase 3
