@@ -12,3 +12,7 @@ Cubrid DB study
 * [Double Write Buffer](module06/README.md)
 
 ## Phase 3
+* TBD
+
+## Resources
+* [resources](resources/README.md)
