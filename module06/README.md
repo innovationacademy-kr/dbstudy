@@ -19,7 +19,7 @@ DB 시스템이 DWB를 사용하는 방식
 
 이 문서에서 DWB라 함은 메모리에 할당되어 있는 DBW block들을 의미하며 block들은 slot들로 구성되어 있다.
 
-DWB volumn은 disk에 저장되어 있는 DWB의 단일 블록이다.
+DWB volume은 disk에 저장되어 있는 DWB의 단일 블록이다.
 
 Block은 매크로에서
 * 개수 :  1개(`[DWB_MIN_BLOCKS]`) ~ 32개(`[DWB_MAX_BLOCKS`) 제한 (기본 2개)
@@ -77,15 +77,15 @@ Flush 순서 및 대기
 
 ### **4-1. DWB -> DWB volume Flush**
 - DWB를 사용해서 Disk로 Flush가 일어나는 경우
-- System crash가 일어나기전 DWB Block -> DWB volume Flush 를 먼저 수행한다.
+- System crash가 일어나기 전 DWB Block -> DWB volume Flush 를 먼저 수행한다.
 - Block의 지역변수 write_buffer을 사용하여 slot의 순서대로 DWB volume에 write를 진행
 - Block 전체 Write가 끝나면, fsync()를 호출하여 DWB volume에 Flush 마무리
 
 ### **4-2. DWB -> DB Flush**
 - Block 내부의 slot들을 정렬 후, DB에 해당하는 Page마다 write() 진행
 - 끝난 뒤 전역변수 file_sync_helper_block에 현재 Flush하려는 Block을 참조시킨다.
-- Daemon을 호출해도 되는데, 그 이유는 이미 DWB Volume에 flush가 완료되었기 때문에, sysem crash가 발생하여도 recovery가 가능하기 때문.
-- 각 Page마다 sync daemon을 호출하거나 불가능 하다면 fsync()를 직접 호출
+- Daemon을 호출해도 되는데, 그 이유는 이미 DWB Volume에 flush가 완료되었기 때문에, system crash가 발생하여도 recovery가 가능하기 때문.
+- 각 Page마다 sync daemon을 호출하거나 불가능하다면 fsync()를 직접 호출
 
 ![DWB_Flush](./module06_image/DWB_Flush.png)
 
@@ -97,7 +97,7 @@ Flush 순서 및 대기
 
 ### **4-4. (Flush, Sync) daemon**
 - dwb flush block daemon
-  - 주기적으로 Block의 모든 slot에 page가 저장되어있는지 (가득 찼는지) 확인한 후, 가득 찼다면 dwb_flush_block() 호출
+  - 주기적으로 Block의 모든 slot에 page가 저장되어 있는지 (가득 찼는지) 확인한 후, 가득찼다면 dwb_flush_block() 호출
 - dwb file sync helper daemon
   - dwb flush block daemon이 호출하는 daemon
   - 주기적으로 dwb_file_sync_helper()를 호출하여 DB로 Page를 flush
@@ -108,21 +108,28 @@ Flush 순서 및 대기
 ## **5. Corrupted Data Page Recovery**
 위 문서에서 `Page Corrupted` 라는 뜻은 DB의 논리적인 Page를 Write 할 때 Partial Write가 일어난 Page를 뜻한다.
 Partial Write란 논리적 Page를 디스크 Page로 저장하는 과정에서 일부를 저장하지 못하는 경우를 말한다.
+
 또한 log를 통해 이뤄지는 recovery는 데이터 자체의 recovery이므로 DWB를 통해 이뤄지는 recovery와는 관련 없는 내용을 밝힌다. 정확히는 log recovery를 진행하기 전에 실행한다.
+
 Recovery가 시작되면, corruption test를 진행하여서 recovery를 진행할 Page를 선별하고 recovery가 불가능한 경우에는 recovery를 그대로 종료한다.
+
 Recovery가 시작할 때 recovery block이 만들어지며 DWB volume에 저장된 내용을 메모리에 할당시킨다. 할당된 Block은 slot ordering 을 통해서 정렬시킨 뒤, 같은 Page의 최신 Page LSA(Log Sequence Address)를 가진 Page만 Recovery에 사용된다.
+
 dwb_check_data_page_is_sane() 함수를 통해 corruption test를 진행하고, dwb_load_and_recover_pages() 함수를 통해 전체적인 recovery를 진행한다.
 
 ### **5.1 Corruption Test**
 같은 volume fd, page id를 가진 recovery block의 Page와, DB의 Page의 corruption test를 각각 진행한다.
 LSA(Log Sequence Address)를 통해서 Partial Write이 일어났는지 확인한다.
+
 Recovery block에서 corruption이 발생했다면, recovery를 잘못된 data로 진행하는 것이 되기 때문에 recovery를 중지한다.
 Recovery block에서 corruption이 발생하지 않았다면, 해당 page는 recovery에 사용가능하다.
+
 DB Page가 corruption이 발생했다면, 그 다음 Page의 corruption test를 진행한다.
 DB Page가 corruption이 발생하지 않았다면, 해당 slot은 NULL로 초기화 시켜서 recovery 속도를 향상시킬 수 있게 한다.
 
 ### **5.2 Recovery**
 정렬된 Recovery block을 DB에 Flush를 진행한다.
+
 `4.1.2`에서 DWB block을 DB에 write하는 방식처럼 slot을 정렬한 뒤 write을 진행한다. Write을 진행한 다음 곧바로 Page에 대해서 Flush를 진행한다.
 
 ![Recovery](./module06_image/Recovery.png)
@@ -134,23 +141,28 @@ DWB 자체의 역할보다는 DB 시스템에서 부수적으로 사용되는 DW
 
 ### **6-1. Slot Hash Entry**
 Page replacement에서 Cache 역할을 담당.
+
 Memory에 찾으려는 Page가 없다면, DWB에서 찾는다. (Disk가 아닌 DWB에서 Page를 가져와 I/O cost 감소)
-생성 시점 : add_page() 함수에서 block과 slot의 index를 구한 다음 생성
-제거 시점 : DB에 Flush 마치고 제거한다.
+* 생성 시점 : add_page() 함수에서 block과 slot의 index를 구한 다음 생성
+* 제거 시점 : DB에 Flush 마치고 제거한다.
+
 Key, Value값으로서 저장
 
 ### **6-2. Flush**
-일반적으로 Memory에 있는 Data를 Disk에 쓰고 동기화 하는 행위
+일반적으로 Memory에 있는 Data를 Disk에 쓰고 동기화하는 행위
 
 ### **6-3. Buffer Pool**
-메인 메모리 내에서 데이터와 인덱스 데이터가 접근될 떄, 해당 데이터를 캐시하는 영역이다.   
-자주 접근되는 데이터를 메모리에서 바로 흭득 가능하다.   
+메인 메모리 내에서 데이터와 인덱스 데이터가 접근될 떄, 해당 데이터를 캐시하는 영역이다.
+
+자주 접근되는 데이터를 메모리에서 바로 획득 가능하다.
 -> 전체 작업의 수행속도 증가.
+
 대량의 읽기 요청 수행을 위해 Buffer Pool은 데이터를 Page단위로 나누어 관리한다.
 한 Page에는 여러 row가 존재할 수 있다.
+
 - Mysql의 경우
-Buffer Pool 내부의 Page는 Linked-List로 관리한다.
-새로운 페이지를 Buffer Pool에 추가하기 위한 페이지 공간이 필요한 경우, 일종의 LRU 알고리즘 (Least Recently Used)을 사용하여 관리한다.
+  - Buffer Pool 내부의 Page는 Linked-List로 관리한다.
+  - 새로운 페이지를 Buffer Pool에 추가하기 위한 페이지 공간이 필요한 경우, 일종의 LRU 알고리즘 (Least Recently Used)을 사용하여 관리한다.
 
 ### **6-4. Double Write Buffer 파일**
 - DWB 파일은 Partial Write로 인한 I/O 에러를 방지하기 위한 저장공간이다.
@@ -178,30 +190,30 @@ Buffer Pool 내부의 Page는 Linked-List로 관리한다.
 
 # page
 
-CUBRID도 OS나 다른 DBMS와 같이 성능상의 이유로 페이지(page) 단위 디스크 I/O를 수행한다. 
+CUBRID도 OS나 다른 DBMS와 같이 성능상의 이유로 페이지(page) 단위 디스크 I/O를 수행한다.
 
-> **가상 메모리란?**
-프로세스는 독립된 메모리 공간(=partition)을 가지고 있고 , 서로의 메모리 공간에 접근할 수 없다. 
-운영체제는 사용자가 많은 프로세스로 메모리를 한계 이상 쓰려고 할 때 디스크 공간을 메모리처럼 사용하여 비록 느리지만 돌아는 가게 만들었다.이렇게 운영체제가 디스크에서 메모리처럼 사용하고자 올린 파일을 paging(swap) file이라고 한다. 이 페이징 파일은 디스크에 올라가기 때문에 다른 프로세스들도 사용할 수 있는 특이한 가상메모리가 된다. 
-우리의 운영체제는 페이징 파일을 실제 물리 메모리에 올리고 내리면서 여러 프로세스를 운용한다. 
-고로 사용자 입장에서는 마치 사용할 수 있는 메모리의 크기가 증가한 것 처럼 보인다. 
+> **가상 메모리란?**<br>
+프로세스는 독립된 메모리 공간(=partition)을 가지고 있고 , 서로의 메모리 공간에 접근할 수 없다.
+운영체제는 사용자가 많은 프로세스로 메모리를 한계 이상 쓰려고 할 때 디스크 공간을 메모리처럼 사용하여 비록 느리지만 돌아는 가게 만들었다. 이렇게 운영체제가 디스크에서 메모리처럼 사용하고자 올린 파일을 paging(swap) file이라고 한다. 이 페이징 파일은 디스크에 올라가기 때문에 다른 프로세스들도 사용할 수 있는 특이한 가상메모리가 된다.<br>
+우리의 운영체제는 페이징 파일을 실제 물리 메모리에 올리고 내리면서 여러 프로세스를 운용한다.
+고로 사용자 입장에서는 마치 사용할 수 있는 메모리의 크기가 증가한 것 처럼 보인다.<br>
 **한정된 물리 메모리의 한계를 극복하고자 디스크와 같은 느린 저장장치를 활용해, 애플리케이션들이 더 많은 메모리를 활용할 수 있게 해 주는 것**이 **가상 메모리**이다.
 
-**page란?**
+## **page란?**
 가상 메모리를 사용하는 최소 크기 단위이다.
 
-**페이지가 왜 필요할까?** 
+## **페이지가 왜 필요할까?**
 만약, 페이징 파일에서 물리 메모리로 데이터를 로드할 때, 아무 위치에나 필요한 크기 만큼(무작위) 로드한다고 가정을 해 보자.
-이런 경우, 로드하고 언로드하는 데이터의 크기가 모두 제각각이므로, 이를 반복하다 보면 메모리 공간에 fragmentation(프로세스가 필요한 양보다 더 큰 메모리가 할당되어서 메모리가 낭비되거나 ****중간중간에 생긴 사용하지 않는 메모리가 많이 존재해서 총 메모리 공간은 충분하지만 실제로 할당할 수 없는 상황)이 발생하게 된다. 이를 막기 위해, 운영체제가 만든 것이 **page**라는 최소 크기 단위인 것이다.
+이런 경우, 로드하고 언로드하는 데이터의 크기가 모두 제각각이므로, 이를 반복하다 보면 메모리 공간에 fragmentation(프로세스가 필요한 양보다 더 큰 메모리가 할당되어서 메모리가 낭비되거나 **중간중간에 생긴 사용하지 않는 메모리가 많이 존재해서 총 메모리 공간은 충분하지만 실제로 할당할 수 없는 상황)이 발생하게 된다.** 이를 막기 위해, 운영체제가 만든 것이 **page**라는 최소 크기 단위인 것이다.
 
-**Demanding-Page란?**
-Demanding-page는 실제로 필요한 page만 물리 메모리로 가져오는 방식이다. 이 과정에서 필요 page에 접근하려 하면, 결국 가상 메모리 주소에 대응하는 물리 메모리 주소를 찾아내어, 물리 메모리 주소를 얻어와 하는데, 이 때 필요한 것이 **[페이지 테이블(page table)](http://sweeper.egloos.com/2988646)**이다. 페이지 테이블에 valid bit 라는 것을 두고, 해당 page가 물리 메모리에 있으면 set, 그렇지 않으면 invalid로 설정한다.
-> 
-> 
-> ![http://pds26.egloos.com/pds/201212/19/32/d0014632_50d1d4659f1c0.png](http://pds26.egloos.com/pds/201212/19/32/d0014632_50d1d4659f1c0.png)
-> 
+## **Demanding-Page란?**
+Demanding-page는 실제로 필요한 page만 물리 메모리로 가져오는 방식이다. 이 과정에서 필요 page에 접근하려 하면, 결국 가상 메모리 주소에 대응하는 물리 메모리 주소를 찾아내어, 물리 메모리 주소를 얻어와 하는데, 이 때 필요한 것이 [**페이지 테이블(page table)**](http://sweeper.egloos.com/2988646)이다. 페이지 테이블에 valid bit 라는 것을 두고, 해당 page가 물리 메모리에 있으면 set, 그렇지 않으면 invalid로 설정한다.
+>
+>
+> ![All Physical Pages in DRAM? No](module06_image/d0014632_50d1d4659f1c0.png)
+>
 
-**슬랏 페이지(slotted page) 구조**
+## **슬랏 페이지(slotted page) 구조**
 
 CUBRID 페이지 크기는 최소 4KB ~ 최대 16KB 이며, 디폴트로 16KB 디스크 페이지 크기를 사용한다.
 
@@ -262,7 +274,7 @@ CUBRID 사용자가 INSERT 구문을 사용하여 데이터(레코드)를 입력
 
 그럼 데이터 길이 정보는 기존 2로 놔두면 해결될까?
 
-SELECT * FROM t1 WHERE c1 != 'cc' 수행 시 우선 데이터 길이가 2이기 때문에 삭제 여부를 알 수 없다.
+`SELECT * FROM t1 WHERE c1 != 'cc'` 수행 시 우선 데이터 길이가 2이기 때문에 삭제 여부를 알 수 없다.
 
 그럼 데이터 삭제 여부 확인을 위해 데이터를 읽을 때마다 첫 바이트가 '\0' 인지 확인해야 한다.
 
@@ -282,7 +294,7 @@ SELECT * FROM t1 WHERE c1 != 'cc' 수행 시 우선 데이터 길이가 2이기
 
 ![http://www.cubrid.com/files/attach/images/7900/789/822/003/68c7629ad4bd7c51835eec0b00a59a06.PNG](http://www.cubrid.com/files/attach/images/7900/789/822/003/68c7629ad4bd7c51835eec0b00a59a06.PNG)
 
-그래서 슬랏 페이지 구조를 이용한다. 여기서 **슬랏(slot) 이란 곧 데이터 헤더이다**. 아래 그림은 슬랏 페이지 구조를 나타낸다. 페이지 헤더에 위치하던 데이터 헤더가 페이지 끝으로 이동했다. 페이지 헤더에는 현재 페이지에 몇 개의 데이터 헤더가 있는지를 나타내는 정보 등이 기록된다. 이 페이지 구조에서 데이터는 기존처럼 페이지 시작에서 끝 방향으로 추가된다. 반면 데이터 헤더는 페이지 끝에서 페이지 시작 방향으로 추가된다. 새로운 데이터 추가 시 데이터 길이에 따라 발생하던 페이지 공간 사용 효율성 문제는 더이상 발생하지 않는다.
+그래서 슬랏 페이지 구조를 이용한다. 여기서 **슬랏(slot)이란 곧 데이터 헤더이다**. 아래 그림은 슬랏 페이지 구조를 나타낸다. 페이지 헤더에 위치하던 데이터 헤더가 페이지 끝으로 이동했다. 페이지 헤더에는 현재 페이지에 몇 개의 데이터 헤더가 있는지를 나타내는 정보 등이 기록된다. 이 페이지 구조에서 데이터는 기존처럼 페이지 시작에서 끝 방향으로 추가된다. 반면 데이터 헤더는 페이지 끝에서 페이지 시작 방향으로 추가된다. 새로운 데이터 추가 시 데이터 길이에 따라 발생하던 페이지 공간 사용 효율성 문제는 더이상 발생하지 않는다.
 
 ![http://www.cubrid.com/files/attach/images/7900/789/822/003/957455e64d39f71dabd83a0efe8ad575.PNG](http://www.cubrid.com/files/attach/images/7900/789/822/003/957455e64d39f71dabd83a0efe8ad575.PNG)
 
