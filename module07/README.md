@@ -99,7 +99,7 @@ disk_format(thread, dbname, volume_id, extension_info) {
 }
 ```
 
-- disk_stab_init() - _initialize new sector table_
+- disk*stab_init() - \_initialize new sector table*
 
 ```jsx
 disk_stab_init(volume_header) {
