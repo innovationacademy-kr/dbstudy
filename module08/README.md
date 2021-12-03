@@ -102,7 +102,7 @@ value : 중복 허용
 - OS와 연관되어 장치제어를 위한 주소체계에서 지정한 주소를 직접 액세스하는 방식을 지정할 수도 있다.
 - 리눅스 커널 등의 OS에서 메모리 주소는 MMU와 연관 된 주소체계로 논리주소와 물리주소 간의 변환이 이루어진다. 경우에 따라 이런 변환을 제거하는 역할을 한다. 또한 원거리 메모리 점프 기계어 코드 등의 제한을 푼다.
 
-### dwb_create_internal
+### **dwb_create_internal**
 
 ```cpp
 /*
@@ -148,7 +148,6 @@ dwb_create_internal (THREAD_ENTRY * thread_p, const char *dwb_volume_name, UINT6
 // double_write_buffer_size = PRM_ID_DWB_SIZE : defualt 2M
 // IO_PAGESIZE : MIN 4K, MAX 16K(default). 페이지 크기는 4K, 8K, 16K. 4K와 16K 사이의 값을 지정할 경우 지정한 값의 올림값으로 설정되며,
 // 4K보다 작으면 4K로 설정되고 16K보다 크면 16K로 설정된다.
-// Slot의 총 개수는 기본적으로 256개(DWB size/size of io_page) << 분석 문서에는 이렇게 나왔는데 단순 계산으론 128개다..?
 
   assert (IS_POWER_OF_2 (num_blocks));
   assert (IS_POWER_OF_2 (num_pages));
@@ -182,7 +181,6 @@ dwb_create_internal (THREAD_ENTRY * thread_p, const char *dwb_volume_name, UINT6
   dwb_Global.next_block_to_flush = 0;
   pthread_mutex_init (&dwb_Global.mutex, NULL);
   dwb_init_wait_queue (&dwb_Global.wait_queue);
-// block wait queue 와 global wait queue 의 사용이 다른지.
   dwb_Global.vdes = vdes;
   dwb_Global.file_sync_helper_block = NULL;
 
@@ -323,7 +321,7 @@ dwb_adjust_write_buffer_values (unsigned int *p_double_write_buffer_size, unsign
 	  /* find smallest number multiple of 512 k */
 	  unsigned int limit1 = min_size;
 
-	  while (*p_double_write_buffer_size > limit1) // buffersize를 512K 의 2의 배수로 맞추기위한 비교와 비트연산의 반복
+	  while (*p_double_write_buffer_size > limit1) // buffersize를 512K 의 2의 n승으로 맞추기위한 비교와 비트연산의 반복
 	    {
 	      assert (limit1 <= DWB_MAX_SIZE);
 	      if (limit1 == DWB_MAX_SIZE)
@@ -436,7 +434,7 @@ fileio_format (THREAD_ENTRY * thread_p, const char *db_full_name_p, const char *
 // symbolic link를 타고 원본 파일의 정보를 가져온다.
 	  is_raw_device = S_ISCHR (buf.st_mode);
 	}
-// character device 이라면 is_raw_device 를 true 로 바꿔줌
+// character device 이라면 is_raw_device 를 true 로 바꿔줌, 문자장치파일 : 스트림을 통하지 않고 디바이스에서 직접 처리하는 파일
 // symbolic file 이면 남겨두는 이유가 무엇인지.
 #else /* !WINDOWS */
       fileio_unformat (thread_p, vol_label_p);
@@ -454,7 +452,7 @@ fileio_format (THREAD_ENTRY * thread_p, const char *db_full_name_p, const char *
     } // 파일시스템의 블록 크기 * 여유 블록 / page_size 로 구한다. 파일이 존재하지 않을시 open으로 생성하고 close 하고 지운다.
 
   offset = FILEIO_GET_FILE_SIZE (page_size, npages - 1);
-// off_t : singed long (파일의 크기를 나타내기 위해 사용, OS마다 다름, sys/types.h 에서 정의) page_size * pages. 왜 -1을 할까.
+// off_t : singed long (파일의 크기를 나타내기 위해 사용, OS마다 다름, sys/types.h 에서 정의)
   /*
    * Make sure that there is enough pages on the given partition before we
    * create and initialize the volume.
@@ -480,7 +478,9 @@ fileio_format (THREAD_ENTRY * thread_p, const char *db_full_name_p, const char *
 
       return NULL_VOLDES;
     }
-
+// max_npages 가 파일시스템의 최대 여유크기이니 npages가 크면
+// 할당할 수 있는 양보다 원하는 할당 크기가 큰것이고
+// offset 이 npages 보다 작으면 오버플로우이다.
   malloc_io_page_p = (FILEIO_PAGE *) malloc (page_size);
   if (malloc_io_page_p == NULL)
     {
@@ -494,7 +494,7 @@ fileio_format (THREAD_ENTRY * thread_p, const char *db_full_name_p, const char *
   vol_fd = fileio_create (thread_p, db_full_name_p, vol_label_p, vol_id, is_do_lock, is_do_sync);
 // open(O_RDWR | O_CREATE, 0600)
   FI_TEST (thread_p, FI_TEST_FILE_IO_FORMAT, 0);
-// #define FI_TEST(th, code, state) 	fi_test(th, code, NULL, state, ARG_FILE_LINE) __FILE__, __LINE__ // 못 찾겠다.
+// #define FI_TEST(th, code, state) 	fi_test(th, code, NULL, state, ARG_FILE_LINE) __FILE__, __LINE__ 과정이 잘 진행되고 있는지 TEST
   if (vol_fd != NULL_VOLDES)
     {
       /* initialize the pages of the volume. */
@@ -517,7 +517,8 @@ fileio_format (THREAD_ENTRY * thread_p, const char *db_full_name_p, const char *
 	  return vol_fd;
 	}
 // page를 dwb volume에 쓴다. malloc_io_page_p 는 빈 페이지이고 메모리만 할당되어있는데 어떻게 쓰이는지 궁금하다. 
-//  FILEIO_PAGE * 를 void *io_page_p 로 받아 write(vol_fd, io_page_p, page_size) 로 입력한다. 실험해보니 쓰레기값처럼 들어간다.
+//  FILEIO_PAGE * 를 void *io_page_p 로 받아 write(vol_fd, io_page_p, page_size) 로 입력한다.
+// write 가 정상 작동하는지 파일이 생성됐는지 테스트 하는 것 같다.
 #if defined(HPUX)
       if ((is_sweep_clean == true
 	   && !fileio_initialize_pages (vol_fd, malloc_io_page_p, npages, page_size, kbytes_to_be_written_per_sec))
@@ -546,7 +547,7 @@ fileio_format (THREAD_ENTRY * thread_p, const char *db_full_name_p, const char *
 	  vol_fd = NULL_VOLDES;
 	  return vol_fd;
 	}
-// HPUX 일떈 is_sweep_clean = 1로 들어왔으니 fileio_initialize_pages(함수안에 interupt 체크 fileio_write_or_add_to_dwb로 write 실패하면 밑의 error 발생)
+// is_sweep_clean = 1로 들어왔으니 fileio_initialize_pages(interupt 체크 fileio_write_or_add_to_dwb로 write 실패하면 밑의 error 발생)
 #if defined(WINDOWS)
       fileio_dismount (thread_p, vol_fd);
       vol_fd = fileio_mount (thread_p, NULL, vol_label_p, vol_id, false, false);
@@ -726,7 +727,6 @@ dwb_create_blocks (THREAD_ENTRY * thread_p, unsigned int num_blocks, unsigned in
 // block 의 초기화 flush_volumes_info, count_flush_volumes_info = 0 (현재 flush 할 볼륨의 수)
 // max_to_flush_vdes (flush 할 수 있는 최대 개수 = num_block_pages), write_buffer, slots, dwb_wait_queue
 // count_wb_pages = 0  (Count DWB pages 라는데 뭔지 모르겠다.), block_no, version = 0, all_pages_written = false; 로 초기화한다.
-// name 은 volumes이지만 page를 뜻하는 것 같은데...흠...
   *p_blocks = blocks;
 
   return NO_ERROR;
