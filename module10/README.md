@@ -1,4 +1,40 @@
-## **`dwb_add_page`**
+# **Slot 탐색 및 Page 저장**
+
+## **1. 분석 문서**
+
+Slot 탐색 및 Page 저장은 Slot 탐색을 진행하고, Page를 해당 순서의 Slot에 저장하는 메커니즘이다.
+
+### **1-1. Block 및 Slot 의 위치 탐색**
+
+* DWB의 전역변수 ‘position_with_flags‘를 비트 연산을 사용해서 Block 및 Slot의 index 탐색한다.
+* 이를 사용하여서 Slot의 시작주소를 획득한다.
+> Block의 index는 순환적이다.
+
+### **1-2. Page 저장**
+
+* 구한 Slot의 index에 Page 저장(memory copy)한다.
+	* 실제로는 Block의 지역변수 write_buffer에 slot순서대로 저장
+* Vpid, LSA정보를 함께 저장한다.
+
+![Slot 탐색 및 Page 저장](./figure1.png)
+
+### **1-3. 탐색 및 저장 실패 케이스**
+
+> 해당 케이스는 slot의 index를 찾기 전에 해당 block에 다른 thread가 write 작업을 진행 중일 때 나타나는 현상이다.  
+> 여기서 write 작업이란 다른 thread가 해당 block에 대해 slot 탐색 ~ DWB flush 사이의 작업이 진행중임을 의미한다.
+
+**Flush 순서 및 대기**
+
+1. Page를 저장해야 할 slot이 첫 번째 slot이고, block이 다른 thread에 의해 writing 중인 상태
+2. 해당 work thread를 대기 상태로 설정하려고 할 때, block의 지역변수에 존재하는 `wait_queue`에 work thread를 저장시키고 대기
+3. 해당 block이 writing 상태가 끝날 때까지 work thread는 `dwb_aquire_next_slot()` 함수 내부 `start` goto phase부터 다시 진행
+4. 해당 block에 대해 다른 thread가 write 작업 마쳤다면, 다시 함수 내부에서 처음부터 시작할 때, 현재 thread가 전역변수 `position_with_flags`에서 현재 block의 상태를 writing으로 바꾼 다음 다시 slot의 index 찾기 작업 진행
+
+&nbsp;
+
+## **2. 코드 분석**
+
+### **`dwb_add_page`**
 
 ```c
 /*
@@ -148,7 +184,7 @@ int dwb_add_page(THREAD_ENTRY *thread_p, FILEIO_PAGE *io_page_p, VPID *vpid, DWB
 }
 ```
 
-## **`thread_get_thread_entry_info`**
+### **`thread_get_thread_entry_info`**
 
 ```cpp
 inline cubthread::entry *
