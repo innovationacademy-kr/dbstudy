@@ -321,3 +321,19 @@ start:
 > 
 }
 ```
+
+<br />
+<br />
+<br />
+
+### dwb_set_slot_data
+
+```cpp
+값을 넣을 슬롯을 가져옵니다
+
+return         : 에러 코드
+can_wait       : 처리 도중 대기가 허용되는 지. true이면 허용
+p_dwb_slot     : 슬롯 포인터의 포인터
+```
+
+```
