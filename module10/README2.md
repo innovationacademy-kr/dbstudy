@@ -171,39 +171,49 @@ start:
     {
       /* Rarely happens. */
       if (DWB_IS_MODIFYING_STRUCTURE (current_position_with_flags))
-> 
+> 만들어지는 중이라면
 	{
 	  if (can_wait == false)
+> (dwb가 만들어질 때까지) 대기가 불가능하다면
 	    {
 	      return NO_ERROR;
+> 종료
 	    }
 
-	  /* DWB structure change started, needs to wait. */
 	  error_code = dwb_wait_for_strucure_modification (thread_p);
+> dwb 가 만들어질 때까지 대기
+	  
 	  if (error_code != NO_ERROR)
+> 에러 발생
 	    {
 	      if (error_code == ER_CSS_PTHREAD_COND_TIMEDOUT)
 		{
-		  /* timeout, try again */
 		  goto start;
+> 타임아웃일 경우 위에서부터 재시도
 		}
 	      return error_code;
+> 다른 에러일 경우 에러 반환
 	    }
 
-	  /* Probably someone else advanced the position, try again. */
 	  goto start;
+> 다시 제일 위 조건부터 플래그 검증
 	}
       else if (!DWB_IS_CREATED (current_position_with_flags))
+> 만들어지지 않았으면
 	{
 	  if (DWB_IS_ANY_BLOCK_WRITE_STARTED (current_position_with_flags))
+> 블록이 하나라도 WRITE_STARTED 상태라면 (0~31 번째 비트 중 하나라도 SET 이라면)
+
 	    {
 	      /* Someone deleted the DWB, before flushing the data. */
 	      er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_DWB_DISABLED, 0);
 	      return ER_DWB_DISABLED;
+> 에러처리
 	    }
 
 	  /* Someone deleted the DWB */
 	  return NO_ERROR;
+> DWB 가 사용불가하므로 종료
 	}
       else
 	{
