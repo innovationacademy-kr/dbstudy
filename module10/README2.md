@@ -329,11 +329,38 @@ start:
 ### dwb_set_slot_data
 
 ```cpp
-값을 넣을 슬롯을 가져옵니다
+slot이 가리키는 위치에 데이터를 놓습니다
 
 return         : 에러 코드
-can_wait       : 처리 도중 대기가 허용되는 지. true이면 허용
-p_dwb_slot     : 슬롯 포인터의 포인터
+dwb_slot       : slot 위치가 되는 포인터
+io_page_p      : 데이터 페이지
 ```
 
+```cpp
+STATIC_INLINE void
+dwb_set_slot_data (THREAD_ENTRY * thread_p, DWB_SLOT * dwb_slot, FILEIO_PAGE * io_page_p)
+{
+  assert (dwb_slot != NULL && io_page_p != NULL);
+
+  assert (io_page_p->prv.p_reserve_2 == 0);
+
+  if (io_page_p->prv.pageid != NULL_PAGEID)
+> 데이터 페이지의 페이지가 NULL_PAGEID(-1)이 아니면
+    {
+      memcpy (dwb_slot->io_page, (char *) io_page_p, IO_PAGESIZE);
+> 슬롯의 페이지 위치에 해당 페이지 복사
+    }
+  else
+    {
+      /* Initialize page for consistency. */
+      fileio_initialize_res (thread_p, dwb_slot->io_page, IO_PAGESIZE);
+> 슬롯의 페이지 자체를 초기화
+    }
+
+  assert (fileio_is_page_sane (io_page_p, IO_PAGESIZE));
+  LSA_COPY (&dwb_slot->lsa, &io_page_p->prv.lsa);
+  VPID_SET (&dwb_slot->vpid, io_page_p->prv.volid, io_page_p->prv.pageid);
+> dwb_slot->vpid.volid = io_page_p->prv.volid
+> dwb_slot->vpid.pageid = io_page_p->prv.pageid
+}
 ```
