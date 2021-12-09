@@ -225,18 +225,30 @@ start:
 
   current_block_no = DWB_GET_BLOCK_NO_FROM_POSITION (current_position_with_flags);
 > current_block_no = (current_position_with_flags & DWB_POSITION_MASK) >> dwb_Global.log2_num_block_pages
-> 위에서 설명한 것과 같이 DWB_POSITION 부분을 dwb_Global.log2_num_block_pages 만큼 밀어서 블록 위치를 계산합니다
-> dwb_Global.log2_num_block_pages 만큼 비트를 밀게 되면 (int)(position / num_block_pages)와 같은 값을 얻게 됩니다
-  
+
   position_in_current_block = DWB_GET_POSITION_IN_BLOCK (current_position_with_flags);
 > position_in_current_block = current_position_with_flags & DWB_POSITION_MASK & (dwb_Global.num_block_pages - 1)
-> 슬롯의 다음 위치(현재 사용될 위치)를 계산합니다
 
-> dwb_Global.num_block_pages는 2^n 이므로 - 1 한 값으로
-> AND 연산을 진행하면 dwb_Global.num_block_pages 값보다 1 작은 값들만 걸러낼 수 있습니다.
 
-> 블록이 2개, 블록당 페이지가 64일 때로 예시를 들어 설명하자면, 0번째 블록의 0번째 슬롯은 0, 1번째 블록의 0번째 슬롯은 64가 됩니다
-> 위 두 과정을 통해서 DWB_POSITION 비트 부분 하나에서 현재 블록과 현재 슬롯 두 가지 정보를 가져올 수 있습니다.
+ex)
+num_block_pages: 64
+log2_num_block_pages: 6
+
+current_position_with_flags & DWB_POSITION_MASK 을 통해 block 번호와 slot index를 알아낼 수 있음
+해당 값이 0 이면 블록 번호 0 // 64 = 0, 슬롯 인덱스 0 % 64 = 0
+해당 값이 65 이면 블록 번호 65 // 64 = 1, 슬롯 인덱스 65 % 64 = 1
+
+이 과정을 비트로 나타내면 아래와 같습니다
+
+current_position_with_flags & DWB_POSITION_MASK => 1이라고 가정 => 00 0000 0000 0000 0000 0000 0000 0001
+블록 번호: 0000 0001 >> 6 = 0
+슬롯 인덱스: 0000 0001 & 63 = 0000 0001 & 0011 1111 = 1
+
+current_position_with_flags & DWB_POSITION_MASK => 65라고 가정 => 00 0000 0000 0000 0000 0000 0100 0001
+블록 번호: 0100 0001 >> 6 = 1
+슬롯 인덱스: 0100 0001 & 0011 1111 = 1
+
+
 
   assert (current_block_no < DWB_NUM_TOTAL_BLOCKS && position_in_current_block < DWB_BLOCK_NUM_PAGES);
 
