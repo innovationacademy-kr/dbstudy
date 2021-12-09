@@ -228,10 +228,12 @@ start:
   position_in_current_block = DWB_GET_POSITION_IN_BLOCK (current_position_with_flags);
 > position_in_current_block = current_position_with_flags & DWB_POSITION_MASK & (dwb_Global.num_block_pages - 1)
 > 슬롯의 다음 위치(현재 사용될 위치)를 계산합니다
-> dwb_Global.num_block_pages는 2^n 이므로 - 1 한 값으로 AND 연산을 진행하면 dwb_Global.num_block_pages 값보다 1 작은 값들만 걸러낼 수 있습니다.
 
-> 블록이 2개, 블록당 페이지가 64일 때로 예시를 들어 설명하자면, 0번째 블록의 0번째 슬롯은 0, 1번째 블록의 0번째 슬롯은 64가 됩니다.
-> 위 두 과정을 통해서 DWB_POSITION 비트 부분으로 두 가지 정보를 가져올 수 있습니다.
+> dwb_Global.num_block_pages는 2^n 이므로 - 1 한 값으로
+> AND 연산을 진행하면 dwb_Global.num_block_pages 값보다 1 작은 값들만 걸러낼 수 있습니다.
+
+> 블록이 2개, 블록당 페이지가 64일 때로 예시를 들어 설명하자면, 0번째 블록의 0번째 슬롯은 0, 1번째 블록의 0번째 슬롯은 64가 됩니다
+> 위 두 과정을 통해서 DWB_POSITION 비트 부분 하나에서 현재 블록과 현재 슬롯 두 가지 정보를 가져올 수 있습니다.
 
   assert (current_block_no < DWB_NUM_TOTAL_BLOCKS && position_in_current_block < DWB_BLOCK_NUM_PAGES);
 
@@ -240,65 +242,75 @@ start:
     {
       /* This is the first write on current block. Before writing, check whether the previous iteration finished. */
       if (DWB_IS_BLOCK_WRITE_STARTED (current_position_with_flags, current_block_no))
+> current_position_with_flags의 MSB에서 current_block_no 번째 비트가 SET 되어 있으면 =
+> current_block_no 블록이 쓰기 작업 중이면
 	{
 	  if (can_wait == false)
 	    {
 	      return NO_ERROR;
+> 대기가 불가능하면 종료
 	    }
 
 	  dwb_log ("Waits for flushing block=%d having version=%lld) \n",
 		   current_block_no, dwb_Global.blocks[current_block_no].version);
 
-	  /*
-	   * The previous iteration didn't finished, needs to wait, in order to avoid buffer overwriting.
-	   * Should happens relative rarely, except the case when the buffer consist in only one block.
-	   */
+
 	  error_code = dwb_wait_for_block_completion (thread_p, current_block_no);
+> 버퍼가 덮어씌워지는 것을 피하기 위해서 이전 작업이 끝날 때까지 대기
+
 	  if (error_code != NO_ERROR)
 	    {
 	      if (error_code == ER_CSS_PTHREAD_COND_TIMEDOUT)
 		{
-		  /* timeout, try again */
 		  goto start;
+> timeout의 경우 처음부터 재시도
 		}
 
 	      dwb_log_error ("Error %d while waiting for flushing block=%d having version %lld \n",
 			     error_code, current_block_no, dwb_Global.blocks[current_block_no].version);
 	      return error_code;
+> 다른 에러의 경우 에러처리
 	    }
 
-	  /* Probably someone else advanced the position, try again. */
 	  goto start;
+> 대기가 끝난 이후 플래그 검토를 위해 처음부터 시작
 	}
 
-      /* First write in the current block. */
       assert (!DWB_IS_BLOCK_WRITE_STARTED (current_position_with_flags, current_block_no));
 
       current_position_with_block_write_started =
 	DWB_STARTS_BLOCK_WRITING (current_position_with_flags, current_block_no);
+> current_position_with_block_write_started = current_position_with_flags의 MSB에서 current_block_no 번째 비트를 SET
 
       new_position_with_flags = DWB_GET_NEXT_POSITION_WITH_FLAGS (current_position_with_block_write_started);
+> new_position_with_flags = slot의 번호가 (페이지 전체 개수 - 1) 과 같다면 0, 아니라면 slot += 1 한 플래그를 반환합니다
+> 위 방식으로 슬롯을 순회합니다
+
     }
   else
     {
-      /* I'm sure that nobody else can delete the buffer */
       assert (DWB_IS_CREATED (dwb_Global.position_with_flags));
       assert (!DWB_IS_MODIFYING_STRUCTURE (dwb_Global.position_with_flags));
 
-      /* Compute the next position with flags */
       new_position_with_flags = DWB_GET_NEXT_POSITION_WITH_FLAGS (current_position_with_flags);
+> new_position_with_flags = slot의 번호가 (페이지 전체 개수 - 1) 과 같다면 0, 아니라면 slot += 1 한 플래그를 반환합니다
+> 위 방식으로 슬롯을 순회합니다
+
     }
 
-  /* Compute and advance the global position in double write buffer. */
+
   if (!ATOMIC_CAS_64 (&dwb_Global.position_with_flags, current_position_with_flags, new_position_with_flags))
+> 만약 다른 스레드에서 처리가 이뤄져 플래그가 바뀌었다면, 다시 처음부터 시작합니다.
+> 그게 아니라면 dwb_Global.position_with_flags에 새 플래그를 대입합니다
     {
-      /* Someone else advanced the global position in double write buffer, try again. */
       goto start;
     }
 
   block = dwb_Global.blocks + current_block_no;
+> block = 포인터 dwb_Global.blocks에 현재 블록 번호를 더한 포인터
 
   *p_dwb_slot = block->slots + position_in_current_block;
+> *p_dwb_slot = 해당 블록의 슬롯 포인터에 슬롯 위치를 더한 포인터
 
   /* Invalidate slot content. */
   VPID_SET_NULL (&(*p_dwb_slot)->vpid);
@@ -306,5 +318,6 @@ start:
   assert ((*p_dwb_slot)->position_in_block == position_in_current_block);
 
   return NO_ERROR;
+> 
 }
 ```
