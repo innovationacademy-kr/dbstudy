@@ -109,22 +109,181 @@ dwb_set_data_on_next_slot (THREAD_ENTRY * thread_p, FILEIO_PAGE * io_page_p, boo
 
   assert (p_dwb_slot != NULL && io_page_p != NULL);
 
-  /* Acquire the slot before setting the data. */
   error_code = dwb_acquire_next_slot (thread_p, can_wait, p_dwb_slot);
+> 페이지를 놓을 슬롯을 찾아 *p_dwb_slot 에 넣어줍니다
+
   if (error_code != NO_ERROR)
     {
       return error_code;
     }
 
   assert (can_wait == false || *p_dwb_slot != NULL);
+> can_wait가 false 이거나,
+> can_wait가 true이면서 *p_dwb_slot이 NULL은 아니어야 함
+  
   if (*p_dwb_slot == NULL)
     {
-      /* Can't acquire next slot. */
       return NO_ERROR;
     }
+> can_wait가 false이고, *p_dwb_slot이 NULL인 경우 처리에 사용할 슬롯을 찾을 수 없었던 것이므로 종료
 
-  /* Set data on slot. */
+
   dwb_set_slot_data (thread_p, *p_dwb_slot, io_page_p);
+> 찾은 슬롯에 페이지 놓기
+
+  return NO_ERROR;
+}
+```
+
+<br />
+<br />
+
+### dwb_acquire_next_slot
+
+```cpp
+값을 넣을 슬롯을 가져옵니다
+
+return         : 에러 코드
+can_wait       : 처리 도중 대기가 허용되는 지. true이면 허용
+p_dwb_slot     : 슬롯 포인터의 포인터
+```
+
+```
+STATIC_INLINE int
+dwb_acquire_next_slot (THREAD_ENTRY * thread_p, bool can_wait, DWB_SLOT ** p_dwb_slot)
+{
+  UINT64 current_position_with_flags, current_position_with_block_write_started, new_position_with_flags;
+  unsigned int current_block_no, position_in_current_block;
+  int error_code = NO_ERROR;
+  DWB_BLOCK *block;
+
+  assert (p_dwb_slot != NULL);
+  *p_dwb_slot = NULL;
+
+start:
+> 시작점
+
+  current_position_with_flags = ATOMIC_INC_64 (&dwb_Global.position_with_flags, 0ULL);
+> current_position_with_flags = dwb_Global.position_with_flags
+
+  if (DWB_NOT_CREATED_OR_MODIFYING (current_position_with_flags))
+> dwb가 만들어지지 않았고, 만들어지는 중이라면
+    {
+      /* Rarely happens. */
+      if (DWB_IS_MODIFYING_STRUCTURE (current_position_with_flags))
+> 
+	{
+	  if (can_wait == false)
+	    {
+	      return NO_ERROR;
+	    }
+
+	  /* DWB structure change started, needs to wait. */
+	  error_code = dwb_wait_for_strucure_modification (thread_p);
+	  if (error_code != NO_ERROR)
+	    {
+	      if (error_code == ER_CSS_PTHREAD_COND_TIMEDOUT)
+		{
+		  /* timeout, try again */
+		  goto start;
+		}
+	      return error_code;
+	    }
+
+	  /* Probably someone else advanced the position, try again. */
+	  goto start;
+	}
+      else if (!DWB_IS_CREATED (current_position_with_flags))
+	{
+	  if (DWB_IS_ANY_BLOCK_WRITE_STARTED (current_position_with_flags))
+	    {
+	      /* Someone deleted the DWB, before flushing the data. */
+	      er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_DWB_DISABLED, 0);
+	      return ER_DWB_DISABLED;
+	    }
+
+	  /* Someone deleted the DWB */
+	  return NO_ERROR;
+	}
+      else
+	{
+	  assert (false);
+	}
+    }
+
+  current_block_no = DWB_GET_BLOCK_NO_FROM_POSITION (current_position_with_flags);
+  position_in_current_block = DWB_GET_POSITION_IN_BLOCK (current_position_with_flags);
+
+  assert (current_block_no < DWB_NUM_TOTAL_BLOCKS && position_in_current_block < DWB_BLOCK_NUM_PAGES);
+
+  if (position_in_current_block == 0)
+    {
+      /* This is the first write on current block. Before writing, check whether the previous iteration finished. */
+      if (DWB_IS_BLOCK_WRITE_STARTED (current_position_with_flags, current_block_no))
+	{
+	  if (can_wait == false)
+	    {
+	      return NO_ERROR;
+	    }
+
+	  dwb_log ("Waits for flushing block=%d having version=%lld) \n",
+		   current_block_no, dwb_Global.blocks[current_block_no].version);
+
+	  /*
+	   * The previous iteration didn't finished, needs to wait, in order to avoid buffer overwriting.
+	   * Should happens relative rarely, except the case when the buffer consist in only one block.
+	   */
+	  error_code = dwb_wait_for_block_completion (thread_p, current_block_no);
+	  if (error_code != NO_ERROR)
+	    {
+	      if (error_code == ER_CSS_PTHREAD_COND_TIMEDOUT)
+		{
+		  /* timeout, try again */
+		  goto start;
+		}
+
+	      dwb_log_error ("Error %d while waiting for flushing block=%d having version %lld \n",
+			     error_code, current_block_no, dwb_Global.blocks[current_block_no].version);
+	      return error_code;
+	    }
+
+	  /* Probably someone else advanced the position, try again. */
+	  goto start;
+	}
+
+      /* First write in the current block. */
+      assert (!DWB_IS_BLOCK_WRITE_STARTED (current_position_with_flags, current_block_no));
+
+      current_position_with_block_write_started =
+	DWB_STARTS_BLOCK_WRITING (current_position_with_flags, current_block_no);
+
+      new_position_with_flags = DWB_GET_NEXT_POSITION_WITH_FLAGS (current_position_with_block_write_started);
+    }
+  else
+    {
+      /* I'm sure that nobody else can delete the buffer */
+      assert (DWB_IS_CREATED (dwb_Global.position_with_flags));
+      assert (!DWB_IS_MODIFYING_STRUCTURE (dwb_Global.position_with_flags));
+
+      /* Compute the next position with flags */
+      new_position_with_flags = DWB_GET_NEXT_POSITION_WITH_FLAGS (current_position_with_flags);
+    }
+
+  /* Compute and advance the global position in double write buffer. */
+  if (!ATOMIC_CAS_64 (&dwb_Global.position_with_flags, current_position_with_flags, new_position_with_flags))
+    {
+      /* Someone else advanced the global position in double write buffer, try again. */
+      goto start;
+    }
+
+  block = dwb_Global.blocks + current_block_no;
+
+  *p_dwb_slot = block->slots + position_in_current_block;
+
+  /* Invalidate slot content. */
+  VPID_SET_NULL (&(*p_dwb_slot)->vpid);
+
+  assert ((*p_dwb_slot)->position_in_block == position_in_current_block);
 
   return NO_ERROR;
 }
