@@ -70,6 +70,9 @@ int dwb_add_page(THREAD_ENTRY *thread_p, FILEIO_PAGE *io_page_p, VPID *vpid, DWB
 	{
 		error_code = dwb_set_data_on_next_slot(thread_p, io_page_p, true, p_dwb_slot);
 		// 가능한 경우, next DWB slot에 데이터 set / error code 설정
+		// dwb_acquire_next_slot()에서 position_with_flags에서 현재 block num, 다음 slot의 위치를 구함
+		// 현재 block의 slot pointer + 구한 slot의 index로 slot의 pointer를 구하고 p_dwb_slot에 대입
+		// dwb_set_slot_data()에서 p_dwb_slot에 io_page_p를 입력
 		if (error_code != NO_ERROR)
 		{
 			return error_code;
@@ -88,6 +91,7 @@ int dwb_add_page(THREAD_ENTRY *thread_p, FILEIO_PAGE *io_page_p, VPID *vpid, DWB
 
 	assert(VPID_EQ(vpid, &dwb_slot->vpid));
 	// #define VPID_EQ(vpid_ptr1, vpid_ptr2) ((vpid_ptr1) == (vpid_ptr2) || ((vpid_ptr1)->pageid == (vpid_ptr2)->pageid && (vpid_ptr1)->volid == (vpid_ptr2)->volid))
+	// vipd와 slot->vpid를 비교하는 이유는 dwb_set_slot_data() 함수에서 입력 과정에서 error가 발생됐는지 check하기 위함으로 추측됨
 	// vpid와 &dwb_slot->vpid가 일치하지 않으면 crash
 
 	if (!VPID_ISNULL(vpid))		// vpid가 NULL이 아니면
@@ -122,6 +126,7 @@ int dwb_add_page(THREAD_ENTRY *thread_p, FILEIO_PAGE *io_page_p, VPID *vpid, DWB
 	// 함수 내에서 선언한 block 포인터 변수에 DWB 전역 구조체 내의 블록 배열의 slot의 block 번호 주소 대입
 	count_wb_pages = ATOMIC_INC_32(&block->count_wb_pages, 1);
 	// 함수 내에서 선언한 count_wb_pages에 ATOMIC_INC_32로 &block->count_wb_pages 대입
+	// write_buffer의 page가 1개 추가되었으므로 +1 해서 대입
 	assert_release(count_wb_pages <= DWB_BLOCK_NUM_PAGES);
 	// count_wb_pages가 DWB 각 block의 page 수보다 크면 crash
 	// assert()와 assert_release()의 차이는..?
@@ -142,6 +147,13 @@ int dwb_add_page(THREAD_ENTRY *thread_p, FILEIO_PAGE *io_page_p, VPID *vpid, DWB
 		return NO_ERROR;
 		// flush 할 필요 없으면 add_page 중단 / NO_ERROR 반환
 	}
+	/*
+	* 궁금한점
+	* 위의 과정을 진행하는 이유는 block이 가득찼을 경우에만 flush하는 것인데 왜 needs_flush를 사용해야 할까?
+	* 그냥 첫 if문에서 page 수보다 작으면 return (NO_ERROR)로 빠져나오면 될텐데 굳이 needs_flush 변수를 사용해야 할까?
+	* needs_flush가 다른 부분에서 사용되면 모르겠는데 여기서만 사용됨
+	*/
+
 
 	/*
 	* Block은 일관된 데이터를 갖기 위해 채워진 순서대로 flush 되어야 한다.
@@ -151,7 +163,7 @@ int dwb_add_page(THREAD_ENTRY *thread_p, FILEIO_PAGE *io_page_p, VPID *vpid, DWB
 	*/
 
 
-// SEVER_MODE가 아닐 경우에만 진행
+// SEVER_MODE로 실행됐을 경우에만 진행
 #if defined(SERVER_MODE)
 	/*
 	* 현재 block을 flush하기 위해 flush block thread를 깨운다.
