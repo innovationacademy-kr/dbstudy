@@ -222,11 +222,21 @@ start:
     }
 
   current_block_no = DWB_GET_BLOCK_NO_FROM_POSITION (current_position_with_flags);
+> current_block_no = (current_position_with_flags & DWB_POSITION_MASK) >> dwb_Global.log2_num_block_pages
+> 위에서 설명한 것과 같이 DWB_POSITION 부분을 dwb_Global.log2_num_block_pages 만큼 밀어서 블록 위치를 계산합니다
+  
   position_in_current_block = DWB_GET_POSITION_IN_BLOCK (current_position_with_flags);
+> position_in_current_block = current_position_with_flags & DWB_POSITION_MASK & (dwb_Global.num_block_pages - 1)
+> 슬롯의 다음 위치(현재 사용될 위치)를 계산합니다
+> dwb_Global.num_block_pages는 2^n 이므로 - 1 한 값으로 AND 연산을 진행하면 dwb_Global.num_block_pages 값보다 1 작은 값들만 걸러낼 수 있습니다.
+
+> 블록이 2개, 블록당 페이지가 64일 때로 예시를 들어 설명하자면, 0번째 블록의 0번째 슬롯은 0, 1번째 블록의 0번째 슬롯은 64가 됩니다.
+> 위 두 과정을 통해서 DWB_POSITION 비트 부분으로 두 가지 정보를 가져올 수 있습니다.
 
   assert (current_block_no < DWB_NUM_TOTAL_BLOCKS && position_in_current_block < DWB_BLOCK_NUM_PAGES);
 
   if (position_in_current_block == 0)
+> 처리하게 될 슬롯이 0번째 슬롯일 때
     {
       /* This is the first write on current block. Before writing, check whether the previous iteration finished. */
       if (DWB_IS_BLOCK_WRITE_STARTED (current_position_with_flags, current_block_no))
