@@ -271,7 +271,7 @@ current_position_with_flags & DWB_POSITION_MASK => 65라고 가정 => 00 0000 00
 
 
 	  error_code = dwb_wait_for_block_completion (thread_p, current_block_no);
-> 버퍼가 덮어씌워지는 것을 피하기 위해서 이전 작업이 끝날 때까지 대기
+> 버퍼가 덮어씌워지는 것을 피하기 위해서 이전 쓰기 작업이 끝날 때까지 대기
 > dwb_wait_for_strucure_modification 와 체크 플래그만 다르고 나머진 동일
 
 	  if (error_code != NO_ERROR)
