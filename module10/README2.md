@@ -527,7 +527,7 @@ dwb_set_slot_data (THREAD_ENTRY * thread_p, DWB_SLOT * dwb_slot, FILEIO_PAGE * i
   assert (io_page_p->prv.p_reserve_2 == 0);
 
   if (io_page_p->prv.pageid != NULL_PAGEID)
-> 데이터 페이지의 페이지가 
+> 데이터 페이지의 페이지가 있다면 
     {
       memcpy (dwb_slot->io_page, (char *) io_page_p, IO_PAGESIZE);
 > 슬롯의 페이지 위치에 해당 페이지 복사
