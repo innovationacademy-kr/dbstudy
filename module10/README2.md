@@ -70,8 +70,61 @@ log2 64 = 6
 
 <br />
 <br />
+<br />
 
 ## dwb_set_data_on_next_slot
 
 ### 진입점
 
+```cpp
+dwb_set_data_on_next_slot (thread_p, io_page_p, can_wait, p_dwb_slot)
+=> dwb_add_page
+=> pgbuf_bcb_flush_with_wal 또는 fileio_write_or_add_to_dwb 또는 dwb_flush_force
+```
+
+```cpp
+dwb_set_data_on_next_slot (thread_p, io_page_p, can_wait, p_dwb_slot)
+=> pgbuf_bcb_flush_with_wal
+```
+
+<br />
+
+### dwb_set_data_on_next_slot
+
+```cpp
+/*
+ * dwb_set_data_on_next_slot () - Sets data at the next DWB slot, if possible.
+ *
+ * return   : Error code.
+ * thread_p(in): The thread entry.
+ * io_page_p(in): The data that will be set on next slot.
+ * can_wait(in): True, if waiting is allowed.
+ * p_dwb_slot(out): Pointer to the next free DWB slot.
+ */
+int
+dwb_set_data_on_next_slot (THREAD_ENTRY * thread_p, FILEIO_PAGE * io_page_p, bool can_wait, DWB_SLOT ** p_dwb_slot)
+{
+  int error_code;
+
+  assert (p_dwb_slot != NULL && io_page_p != NULL);
+
+  /* Acquire the slot before setting the data. */
+  error_code = dwb_acquire_next_slot (thread_p, can_wait, p_dwb_slot);
+  if (error_code != NO_ERROR)
+    {
+      return error_code;
+    }
+
+  assert (can_wait == false || *p_dwb_slot != NULL);
+  if (*p_dwb_slot == NULL)
+    {
+      /* Can't acquire next slot. */
+      return NO_ERROR;
+    }
+
+  /* Set data on slot. */
+  dwb_set_slot_data (thread_p, *p_dwb_slot, io_page_p);
+
+  return NO_ERROR;
+}
+```
