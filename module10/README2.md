@@ -309,7 +309,7 @@ current_position_with_flags & DWB_POSITION_MASK => 65라고 가정 => 00 0000 00
       assert (!DWB_IS_MODIFYING_STRUCTURE (dwb_Global.position_with_flags));
 
       new_position_with_flags = DWB_GET_NEXT_POSITION_WITH_FLAGS (current_position_with_flags);
-> new_position_with_flags = slot의 번호가 (페이지 전체 개수 - 1) 과 같다면 0, 아니라면 slot += 1 한 플래그를 반환합니다
+> new_position_with_flags = slot의 index가 (num_pages - 1) 과 같다면(마지막 슬롯이라면) 0, 아니라면 slot을 1 증가하고 플래그를 반환합니다
 > 위 방식으로 슬롯을 순회합니다
 
     }
