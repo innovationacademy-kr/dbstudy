@@ -91,16 +91,17 @@ dwb_set_data_on_next_slot (thread_p, io_page_p, can_wait, p_dwb_slot)
 
 ### dwb_set_data_on_next_slot
 
+
 ```cpp
-/*
- * dwb_set_data_on_next_slot () - Sets data at the next DWB slot, if possible.
- *
- * return   : Error code.
- * thread_p(in): The thread entry.
- * io_page_p(in): The data that will be set on next slot.
- * can_wait(in): True, if waiting is allowed.
- * p_dwb_slot(out): Pointer to the next free DWB slot.
- */
+현재 슬롯을 반환해 값을 넣고 다음 슬롯이 있다면 다음 슬롯을 물려줌
+
+return         : 에러 코드
+io_page_p      : 슬롯에 놓게 될 데이터
+can_wait       : 처리 도중 대기가 허용되는 지. true이면 허용
+p_dwb_slot     : 슬롯 포인터의 포인터
+```
+ 
+```cpp
 int
 dwb_set_data_on_next_slot (THREAD_ENTRY * thread_p, FILEIO_PAGE * io_page_p, bool can_wait, DWB_SLOT ** p_dwb_slot)
 {
