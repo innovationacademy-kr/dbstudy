@@ -33,6 +33,8 @@ num_blocks(블록의 전체 개수) 와 num_pages(페이지의 전체 개수) �
 <br />
 
 ```cpp
+IO_PAGESIZE = 16 KB 기준
+
 32 <= num_pages <= 2048
 32 <= 2^(5~11) <= 2048
 
