@@ -332,6 +332,76 @@ start:
 ### dwb_wait_for_strucure_modification
 
 ```cpp
+STATIC_INLINE DWB_WAIT_QUEUE_ENTRY *
+dwb_make_wait_queue_entry (DWB_WAIT_QUEUE * wait_queue, void *data)
+{
+  DWB_WAIT_QUEUE_ENTRY *wait_queue_entry;
+
+  assert (wait_queue != NULL && data != NULL);
+
+  if (wait_queue->free_list != NULL)
+    {
+      wait_queue_entry = wait_queue->free_list;
+      wait_queue->free_list = wait_queue->free_list->next;
+      wait_queue->free_count--;
+    }
+> freelist 가 존재한다면 freelist에서 가져와서 사용
+  else
+    {
+      wait_queue_entry = (DWB_WAIT_QUEUE_ENTRY *) malloc (sizeof (DWB_WAIT_QUEUE_ENTRY));
+> 없다면 직접 할당
+
+      if (wait_queue_entry == NULL)
+	{
+	  er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_OUT_OF_VIRTUAL_MEMORY, 1, sizeof (DWB_WAIT_QUEUE_ENTRY));
+	  return NULL;
+	}
+> 에러처리
+    }
+
+  wait_queue_entry->data = data;
+> data는 스레드 포인터
+  wait_queue_entry->next = NULL;
+  return wait_queue_entry;
+> 블록 초기화 및 반환
+}
+
+
+STATIC_INLINE DWB_WAIT_QUEUE_ENTRY *
+dwb_block_add_wait_queue_entry (DWB_WAIT_QUEUE * wait_queue, void *data)
+{
+  DWB_WAIT_QUEUE_ENTRY *wait_queue_entry = NULL;
+
+  assert (wait_queue != NULL && data != NULL);
+
+  wait_queue_entry = dwb_make_wait_queue_entry (wait_queue, data);
+> wait queue에 들어갈 대기열 생성
+
+  if (wait_queue_entry == NULL)
+    {
+      return NULL;
+> 할당 오류
+    }
+
+  if (wait_queue->head == NULL)
+    {
+      wait_queue->tail = wait_queue->head = wait_queue_entry;
+> wait_queue가 비어있으면 head = tail = wait_queue_entry
+    }
+  else
+    {
+      wait_queue->tail->next = wait_queue_entry;
+      wait_queue->tail = wait_queue_entry;
+> tail->next에 해당 블록을 넣고 tail을 마지막 블록으로 정리
+    }
+  wait_queue->count++;
+> count + 1
+
+  return wait_queue_entry;
+}
+
+
+
 STATIC_INLINE int
 dwb_wait_for_strucure_modification (THREAD_ENTRY * thread_p)
 {
