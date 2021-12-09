@@ -150,7 +150,7 @@ can_wait       : 처리 도중 대기가 허용되는 지. true이면 허용
 p_dwb_slot     : 슬롯 포인터의 포인터
 ```
 
-```
+```cpp
 STATIC_INLINE int
 dwb_acquire_next_slot (THREAD_ENTRY * thread_p, bool can_wait, DWB_SLOT ** p_dwb_slot)
 {
@@ -226,6 +226,7 @@ start:
   current_block_no = DWB_GET_BLOCK_NO_FROM_POSITION (current_position_with_flags);
 > current_block_no = (current_position_with_flags & DWB_POSITION_MASK) >> dwb_Global.log2_num_block_pages
 > 위에서 설명한 것과 같이 DWB_POSITION 부분을 dwb_Global.log2_num_block_pages 만큼 밀어서 블록 위치를 계산합니다
+> dwb_Global.log2_num_block_pages 만큼 비트를 밀게 되면 (int)(position / num_block_pages)와 같은 값을 얻게 됩니다
   
   position_in_current_block = DWB_GET_POSITION_IN_BLOCK (current_position_with_flags);
 > position_in_current_block = current_position_with_flags & DWB_POSITION_MASK & (dwb_Global.num_block_pages - 1)
@@ -327,6 +328,102 @@ start:
 <br />
 <br />
 <br />
+
+### dwb_wait_for_strucure_modification
+
+```cpp
+STATIC_INLINE int
+dwb_wait_for_strucure_modification (THREAD_ENTRY * thread_p)
+{
+#if defined (SERVER_MODE)
+  int error_code = NO_ERROR;
+  DWB_WAIT_QUEUE_ENTRY *double_write_queue_entry = NULL;
+  UINT64 current_position_with_flags;
+  int r;
+  struct timeval timeval_crt, timeval_timeout;
+  struct timespec to;
+  bool save_check_interrupt;
+
+  (void) pthread_mutex_lock (&dwb_Global.mutex);
+> wait queue의 수정에 앞서 lock
+
+  current_position_with_flags = ATOMIC_INC_64 (&dwb_Global.position_with_flags, 0ULL);
+> current_position_with_flags = dwb_Global.position_with_flags
+
+  if (!DWB_IS_MODIFYING_STRUCTURE (current_position_with_flags))
+> 불필요한 대기를 피하기 위해 DWB 가 생성중이 아니라면
+    {
+      pthread_mutex_unlock (&dwb_Global.mutex);
+      return NO_ERROR;
+> lock을 해제하고 종료
+    }
+
+  thread_lock_entry (thread_p);
+> 해당 스레드도 lock
+
+  double_write_queue_entry = dwb_block_add_wait_queue_entry (&dwb_Global.wait_queue, thread_p);
+> wait queue에 대기열 추가
+  if (double_write_queue_entry == NULL)
+    {
+      /* allocation error */
+      thread_unlock_entry (thread_p);
+      pthread_mutex_unlock (&dwb_Global.mutex);
+
+      ASSERT_ERROR_AND_SET (error_code);
+      return error_code;
+> 실패했으면 에러처리
+    }
+
+  pthread_mutex_unlock (&dwb_Global.mutex);
+> 스레드 unlock
+
+  save_check_interrupt = logtb_set_check_interrupt (thread_p, false);
+
+  gettimeofday (&timeval_crt, NULL);
+  timeval_add_msec (&timeval_timeout, &timeval_crt, 10);
+  timeval_to_timespec (&to, &timeval_timeout);
+> timeout을 위한 설정
+
+  r = thread_suspend_timeout_wakeup_and_unlock_entry (thread_p, &to, THREAD_DWB_QUEUE_SUSPENDED);
+> 실질적 대기, 내부에서 pthread_cond_timedwait 함수를 호출하여 대기가 일어남
+> pthread_cond_timedwait는 리눅스 함수이므로, 윈도우의 경우에는 동일 이름으로 함수를 구현하여 제공
+
+  (void) logtb_set_check_interrupt (thread_p, save_check_interrupt);
+  if (r == ER_CSS_PTHREAD_COND_TIMEDOUT)
+    {
+      /* timeout, remove the entry from queue */
+      dwb_remove_wait_queue_entry (&dwb_Global.wait_queue, &dwb_Global.mutex, thread_p, NULL);
+      return r;
+> timeout 처리
+
+    }
+  else if (thread_p->resume_status != THREAD_DWB_QUEUE_RESUMED)
+    {
+      assert (thread_p->resume_status == THREAD_RESUME_DUE_TO_SHUTDOWN);
+
+      dwb_remove_wait_queue_entry (&dwb_Global.wait_queue, &dwb_Global.mutex, thread_p, NULL);
+      er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_INTERRUPTED, 0);
+      return ER_INTERRUPTED;
+> 인터럽트가 일어났을 경우 처리
+
+    }
+  else
+    {
+      assert (thread_p->resume_status == THREAD_DWB_QUEUE_RESUMED);
+      return NO_ERROR;
+> 종료
+
+    }
+#else /* !SERVER_MODE */
+  return NO_ERROR;
+#endif /* !SERVER_MODE */
+}
+```
+
+<br />
+<br />
+<br />
+
 
 ### dwb_set_slot_data
 
