@@ -224,7 +224,12 @@ if (extend_info->nsect_free > context->n_cache_reserve_remaining)
 		"increment intention by %d to %d for %s.", context->n_cache_reserve_remaining,
 		extend_info->nsect_intention, disk_type_to_string (extend_info->voltype));
 }
+```
 
+<br/>
+
+(7) b. 하지만 목적에 따른 LOCK을 획득 했을 때 extend가 진행되지 않았다는 것이 확인되면, 현재 쓰레드 엔트리에서 디스크 extend를 수행해야 하므로 목적에 따른 LOCK을 해제하고 `disk_extend` 함수를 호출하여 extend를 수행
+```c
 /* ok, we really have to extend the disk space ourselves */
 save_remaining = context->n_cache_reserve_remaining;
 
@@ -235,21 +240,45 @@ error_code = disk_extend (thread_p, extend_info, context);
 
 <br/>
 
-(7) b. 하지만 목적에 따른 LOCK을 획득 했을 때 extend가 진행되지 않았다는 것이 확인되면, 현재 쓰레드 엔트리에서 디스크 extend를 수행해야 하므로 목적에 따른 LOCK을 해제하고 `disk_extend` 함수를 호출하여 extend를 수행
-
-<br/>
-
 (8) 디스크 extend가 완료되면 이에 대한 로그를 기록하기 위해 목적에 따른 LOCK을 잡고, 로그를 남긴 뒤에 해당 LOCK을 해제
+```c
+/* remove intention */
+disk_cache_lock_reserve (extend_info);
+extend_info->nsect_intention -= save_remaining;
+disk_log ("disk_reserve_from_cache", "extend done. decrement intention by %d to %d for %s. \n",
+	save_remaining, extend_info->nsect_intention, disk_type_to_string (extend_info->voltype));
+disk_cache_unlock_reserve (extend_info);
+```
 
 <br/>
 
 (9) 디스크 extend 과정에서 이미 섹터 예약이 모두 끝났고, 더 이상의 extend는 필요 없으므로 extend 전용 LOCK도해제
+```c
+disk_unlock_extend ();
+```
 
 <br/>
 
 (10) 위 과정 동안 에러가 없었는지 확인하고, 예약하려는 섹터가 남았는지 확인
 
 문제가 없다면 `did_extend`를 `true`로 만들고 NO_ERROR를 반환 (extend 되지 않고 정상적으로 예약이 되었다면 (3) a 혹은 (6) a에서 종료)
+```c
+if (error_code != NO_ERROR)
+{
+	ASSERT_ERROR ();
+	return error_code;
+}
+if (context->n_cache_reserve_remaining > 0)
+{
+	assert_release (false);
+	return ER_FAILED;
+}
+
+*did_extend = true;
+
+/* all cache reservations were made */
+return NO_ERROR;
+```
 
 <br/>
 
