@@ -510,7 +510,7 @@ b. `type == DB_TEMPORARY_VOLTYPE`
 
 * `end_iter`는 `LOG_MAX_DB_VOLID`에서 Temporary 타입의 볼륨 수만큼 뺀 수까지
 
-* `incr`는 1개씩 감소 방향`
+* `incr`는 1개씩 감소 방향
 
 * `min_free`는 (`context`에 기록되어 있는) 예약해야 하는 총 섹터 수와 Temporary 목적의 한 볼륨이 가질 수 있는 최대 섹터 수 중 더 작은 값을 절반으로 나눈 값
 
