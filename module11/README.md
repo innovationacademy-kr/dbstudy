@@ -5,12 +5,10 @@
 disk_reserve_from_cache
 │
 ├── disk_cache_lock_reserve_for_purpose
-│   └── disk_cache_lock_reserve_for_purpose
-│       └── disk_cache_lock_reserve_for_purpose
+│   └── disk_cache_lock_reserve
 │
 ├── disk_cache_unlock_reserve_for_purpose
-│   └── disk_cache_unlock_reserve_for_purpose
-│       └── disk_cache_unlock_reserve_for_purpose
+│   └── disk_cache_unlock_reserve
 │
 ├── disk_reserve_from_cache_vols
 │   └── disk_reserve_from_cache_volume
@@ -27,7 +25,85 @@ disk_reserve_from_cache
 
 <br/>
 
-## 2) disk_reserve_from_cache
+## 2) disk_cache_lock_reserve_for_purpose & disk_cache_lock_reserve
+### 1. Purpose
+캐쉬로부터 섹터 예약을 진행하는 과정에서 볼륨의 목적에 맞는 LOCK을 취득하기 위한 함수
+목적에 맞는 값을 `DB_VOLPURPOSE` 타입의 인자로 넘겨서 `disk_cache_lock_reserve` 함수를 호출
+
+<br/>
+
+### 2. Flows
+(1) `me`라는 `int` 타입 변수에 `thread_get_current_entry_index`를 호출하여 자신의 쓰레드 엔트리 인덱스를 기록
+```c
+int me = thread_get_current_entry_index ();
+```
+
+<br/>
+
+(2) `extend_info`의 `owner_reserve`는 LOCK을 취득하기 이전에는 -1로 되어 있다가, LOCK을 획득하면 그제서야 `me`로 기록해둔 값을 할당 (따라서 기존에 이미 `me`에 할당된 값이 존재하는 경우를 LOCK을 취득하기 이전에 검사)
+```c
+if (me == extend_info->owner_reserve)
+{
+	/* already owner */
+	assert (false);
+	return;
+}
+```
+
+<br/>
+
+(3) 쓰레드 엔트리 인덱스의 검증이 끝났다면, `pthread_mutex_lock` 함수 호출로 목적에 따른 LOCK을 취득
+```c
+pthread_mutex_lock (&extend_info->mutex_reserve);
+```
+
+<br/>
+
+(4) LOCK이 취득되더라도 여전히 `owner_reserve`정보는 자신의 쓰레드 엔트리 값으로 바꾸지 않았기 때문에 -1인 상태므로 이에 대한 검증을 수행 후, `owner_reserve`값을 `me`로 할당
+```c
+assert (extend_info->owner_reserve == -1);
+extend_info->owner_reserve = me;
+```
+
+<br/>
+
+## 3) disk_cache_unlock_reserve_for_purpose & disk_cache_unlock_reserve
+### 1. Purpose
+캐쉬로부터 섹터 예약을 진행하는 과정에서 볼륨의 목적에 맞는 LOCK을 해제하기 위한 함수
+목적에 맞는 값을 `DB_VOLPURPOSE` 타입의 인자로 넘겨서 `disk_cache_unlock_reserve` 함수를 호출
+
+<br/>
+
+### 2. Flows
+(1) `thread_get_current_entry_index` 함수의 호출로 현재 쓰레드 엔트리를 `me`라는 변수에 할당
+```c
+int me = thread_get_current_entry_index ();
+```
+
+<br/>
+
+(2) LOCK을 해제한다는 것은 기존에 취득한 LOCK을 놓겠다는 의미이고, LOCK을 획득했을 때는 `owner_reserve`에 me를 기록해두었기 떄문에 LOCK을 해제하기 이전에 LOCK을 소지하고 있는지 여부를 검증
+```c
+assert (me == extend_info->owner_reserve);
+```
+
+<br/>
+
+(3) 검증을 마쳐서 LOCK을 소지하고 있던 것이 맞다면 `owner_reserve` 값을 다시 -1로 할당
+```c
+extend_info->owner_reserve = -1;
+```
+
+<br/>
+
+(4) LOCK을 해제
+```c
+pthread_mutex_unlock (&extend_info->mutex_reserve);
+```
+
+<br/>
+
+## 4) disk_reserve_from_cache
 ### 1. Parameters
 ```c
 static int
