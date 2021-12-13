@@ -506,7 +506,7 @@ if (type == DB_PERMANENT_VOLTYPE)
 
 b. `type == DB_TEMPORARY_VOLTYPE`
 
-* `start_iter`는 `LOG_MAX_DB_VOLID`로 VOLID_MAX - 1의 인덱스부터 시작
+* `start_iter`는 `LOG_MAX_DB_VOLID`로 `VOLID_MAX - 1`의 인덱스부터 시작
 
 * `end_iter`는 `LOG_MAX_DB_VOLID`에서 Temporary 타입의 볼륨 수만큼 뺀 수까지
 
