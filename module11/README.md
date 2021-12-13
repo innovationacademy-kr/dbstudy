@@ -103,7 +103,78 @@ pthread_mutex_unlock (&extend_info->mutex_reserve);
 
 <br/>
 
-## 4) disk_reserve_from_cache
+## 4) disk_lock_extend
+### 1. Purpose
+볼륨 extend를 수행하기 위해 LOCK을 획득하는 함수
+
+<br/>
+
+### 2. Flows
+(1) `disk_cache_lock_reserve` 함수를 호출 했을 때와 마찬가지로 `thread_get_current_entry_index` 함수를 호출하여 쓰레드 엔트리를 `me`라는 변수에 할당
+```c
+int me = thread_get_current_entry_index ();
+```
+
+<br/>
+
+(2) extend를 위한 LOCK을 잡기 전에는 목적에 따른 LOCK을 잡아두지 않은 상태여야 하므로 이에 대한 검증을 수행 (`me`와 `owner_reserve`가 달라야 함)
+```c
+assert (me != disk_Cache->perm_purpose_info.extend_info.owner_reserve);
+assert (me != disk_Cache->temp_purpose_info.extend_info.owner_reserve);
+```
+
+<br/>
+
+(3) `me`의 값이 전역 변수인 `disk_Cache`의 `owner_extend`와 같다면 이미 LOCK을 획득한 것이므로 그대로 함수 종료
+```c
+if (me == disk_Cache->owner_extend)
+{
+	/* already owner */
+	assert (false);
+	return;
+}
+```
+
+<br/>
+
+(4) LOCK 획득 후 `owner_extend`값에 `me`를 할당
+```c
+pthread_mutex_lock (&disk_Cache->mutex_extend);
+assert (disk_Cache->owner_extend == -1);
+disk_Cache->owner_extend = me;
+```
+
+<br/>
+
+## 5) disk_unlock_extend
+### 1. Purpose
+볼륨 extend를 마치고 난 후 LOCK을 해제하는 함수
+
+<br/>
+
+### 2. Flows
+(1) `me` 값을 `thread_get_current_entry_index`를 호출하여 할당
+```c
+int me = thread_get_current_entry_index ();
+```
+
+<br/>
+
+(2) LOCK을 소유하고 있다면 `disk_Cache` 전역 변수의 `owner_extend` 값이 `me`와 같으므로 이에 대한 검증 시도
+```c
+assert (disk_Cache->owner_extend == me);
+```
+
+<br/>
+
+(3) `owner_extend` 값을 -1로 되돌리고,  LOCK 해제
+```c
+pthread_mutex_unlock (&disk_Cache->mutex_extend);
+```
+
+<br/>
+
+## 6) disk_reserve_from_cache
 ### 1. Parameters
 ```c
 static int
