@@ -1,7 +1,7 @@
 # 11. Disk Manager (4th Week)
 
 ## 1) Major Functions
-```
+```c
 disk_reserve_from_cache
 │
 ├── disk_cache_lock_reserve_for_purpose
@@ -22,6 +22,8 @@ disk_reserve_from_cache
 │
 └── disk_unlock_extend
 ```
+
+`disk_reserve_from_cache`와 연관된 위의 함수들은 실제로 디스크로부터 섹터들을 부여 받는 것이 아니라 예약이 가능한 섹터들의 정보들을 볼륨과 관련하여 `context`로 기록
 
 <br/>
 
@@ -185,11 +187,11 @@ static int
 disk_reserve_from_cache (THREAD_ENTRY * thread_p, DISK_RESERVE_CONTEXT * context, bool * did_extend)
 ```
 
-* THREAD_ENTRY * thread_p
+* #### THREAD_ENTRY * thread_p
 
 	쓰레드 엔트리
 
-* DISK_RESERVE_CONTEXT * context
+* #### DISK_RESERVE_CONTEXT * context
 
 	`disk_reserve_sectors` 함수에서 기록된 예약을 위한 맥락 (함수의 내용들을 수행하는 동안 구조체 내부 값이 변동될 수 있음, 아래와 같은 내용들이 있음)
 
@@ -203,7 +205,7 @@ disk_reserve_from_cache (THREAD_ENTRY * thread_p, DISK_RESERVE_CONTEXT * context
 
 	(5) 예약 대상이 되는 볼륨의 이용 목적 (`context.purpose`)
 
-* bool * did_extend
+* #### bool * did_extend
 
 	섹터 예약에 있어서 볼륨의 extend가 발생했는지 기록 (`disk_reserve_from_cache` 함수는 에러 코드를 반환하도록 되어 있으므로 추가적인 반환을 위해선 포인터 전달이 필요)
 
@@ -216,15 +218,15 @@ DKNSECTS save_remaining;
 int error_code = NO_ERROR;
 ```
 
-* DISK_EXTENDED_INFO * extend_info
+* #### DISK_EXTENDED_INFO * extend_info
 
 	`disk_reserve_from_cache`는 TEMPORARY든 PERMANENT든 목적에 관계없이 캐쉬로부터 섹터 예약이 가능해야 하므로, (`context`에 기록된) 목적에 맞는 extend 정보들을 참조할 수 있도록 이용
 
-* DKNSECTS save_remaining
+* #### DKNSECTS save_remaining
 
 	디스크의 extend를 위해 이용되는 `extend_info`의 `nsect_intention`을 조작하는데 사용되는 변수 (예약하려는 남은 섹터 수인 `context` 구조체 내부의 `n_cache_reserve_remaining`을 통해서 초기화 됨, extend 이전에 높인 `nsect_intention`을 extend 이후에 낮출 필요가 있는데 `n_cache_reserve_remaining`은 extend 과정에서 예약을 진행하면서 그 값이 변경되기 때문에 `save_remaining`에 예약이 필요한 남은 섹터수를 기록하게 됨)
 
-* int error_code
+* #### int error_code
 
 	함수 내에서 특정 작업 수행 후, 에러 여부 기록 용도의 변수
 
@@ -565,6 +567,99 @@ for (volid_iter = start_iter; volid_iter != end_iter && context->n_cache_reserve
 <br/>
 
 ## 8) disk_reserve_from_cache_volume
+### 1. Parameters
+```c
+STATIC_INLINE void
+disk_reserve_from_cache_volume (VOLID volid, DISK_RESERVE_CONTEXT * context)
+```
+
+* #### VOLID volid
+
+	섹터 예약의 대상이 되는 볼륨 ID
+
+* #### DISK_RESERVE_CONTEXT * context
+
+	`disk_reserve_from_cache` 함수의 동일 인자 참고
+
+<br/>
+
+### 2. Automatics
+```c
+DKNSECTS nsects;
+```
+
+* #### DKNSECTS nsects
+
+	한 볼륨 상에서 예약을 진행할 섹터 수
+
+<br/>
+
+### 3. Flows
+(1) 예약을 진행한 볼륨의 수가 `LOG_MAX_DBVOLID`보다 작아야 하므로, 이에 대한 검증을 진행
+```c
+if (context->n_cache_vol_reserve >= LOG_MAX_DBVOLID)
+{
+	assert_release (false);
+	return;
+}
+```
+
+<br/>
+
+(2) `context`의 목적에 맞는 `extend_info`에 쓰레드 엔트리 인덱스를 기록하고 있는 `owner_reserve` 값이 `thread_get_current_entry_index` 함수의 호출 결과와 같은지 검증
+```c
+disk_check_own_reserve_for_purpose (context->purpose);
+```
+
+<br/>
+
+(3) 예약을 진행하려는 섹터 수가 존재해야하고, 인자로 받은 `volid`에 해당하는 볼륨에 가용 섹터 수가 존재해야함
+```c
+assert (context->n_cache_reserve_remaining > 0);
+assert (disk_Cache->vols[volid].nsect_free > 0);
+```
+
+<br/>
+
+(4) 볼륨 상에서 예약이 가능한 섹터 수는 `volid`에 해당하는 볼륨의 가용 섹터 수와 예약을 해야하는 섹터 수 중 더 작은 값을 현재 볼륨에서 진행할 수 있으므로, 이 둘 중 더 작은 값을 `nsects`에 할당
+```c
+nsects = MIN (disk_Cache->vols[volid].nsect_free, context->n_cache_reserve_remaining);
+```
+
+<br/>
+
+(5) 캐쉬에 볼륨에 대한 가용 섹터 수를 갱신 (위에서 제시된 `nsects` 수만큼 가용 섹터 수에서 제할 수 있으므로 `-nsects`를 이용)
+```c
+disk_cache_update_vol_free (volid, -nsects);
+```
+
+<br/>
+
+(6) `context`의 `cache_vol_reserve` 배열에 순서대로 `volid`와 예약을 진행할 수 있는 섹터 수 `nsects`를 각각 `volid`와 `nsect`에 할당
+
+예약을 진행해야 하는 섹터 수는 `nsects`만큼 감소해야 하므로 `n_cache_reserve_remaining`을 그만큼 감소
+```c
+context->cache_vol_reserve[context->n_cache_vol_reserve].volid = volid;
+context->cache_vol_reserve[context->n_cache_vol_reserve].nsect = nsects;
+context->n_cache_reserve_remaining -= nsects;
+```
+
+<br/>
+
+(7) 로그를 남기고 `cache_vol_reserve` 배열에 사용될 인덱스를 증가 (따라서 최종적으로 `disk_reserve_from_cache_volume`을 마쳤을 때 `n_cache_vol_reserve`는 예약에 사용된 볼륨 수가 됨)
+```c
+disk_log ("disk_reserve_from_cache_volume", "reserved %d sectors from volid = %d, \n" DISK_RESERVE_CONTEXT_MSG,
+	    nsects, volid, DISK_RESERVE_CONTEXT_AS_ARGS (context));
+
+context->n_cache_vol_reserve++;
+```
+
+<br/>
+
+(8) 예약을 위한 정보들을 기록했다면, 예약을 진행해야 하는 섹터 수들은 0 이상으로 남아 있어야 (음수가 되면 필요 이상으로의 예약 정보를 기록한 것이므로) 함
+```c
+assert (context->n_cache_reserve_remaining >= 0);
+```
 
 <br/>
 
