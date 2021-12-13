@@ -28,6 +28,8 @@ disk_reserve_from_cache
 ## 2) disk_cache_lock_reserve_for_purpose & disk_cache_lock_reserve
 ### 1. Purpose
 캐쉬로부터 섹터 예약을 진행하는 과정에서 볼륨의 목적에 맞는 LOCK을 취득하기 위한 함수
+
+
 목적에 맞는 값을 `DB_VOLPURPOSE` 타입의 인자로 넘겨서 `disk_cache_lock_reserve` 함수를 호출
 
 <br/>
@@ -70,6 +72,8 @@ extend_info->owner_reserve = me;
 ## 3) disk_cache_unlock_reserve_for_purpose & disk_cache_unlock_reserve
 ### 1. Purpose
 캐쉬로부터 섹터 예약을 진행하는 과정에서 볼륨의 목적에 맞는 LOCK을 해제하기 위한 함수
+
+
 목적에 맞는 값을 `DB_VOLPURPOSE` 타입의 인자로 넘겨서 `disk_cache_unlock_reserve` 함수를 호출
 
 <br/>
@@ -183,25 +187,25 @@ disk_reserve_from_cache (THREAD_ENTRY * thread_p, DISK_RESERVE_CONTEXT * context
 
 * THREAD_ENTRY * thread_p
 
-	:	쓰레드 엔트리
+	쓰레드 엔트리
 
 * DISK_RESERVE_CONTEXT * context
 
-	:	`disk_reserve_sectors` 함수에서 기록된 예약을 위한 맥락 (함수의 내용들을 수행하는 동안 구조체 내부 값이 변동될 수 있음, 아래와 같은 내용들이 있음)
+	`disk_reserve_sectors` 함수에서 기록된 예약을 위한 맥락 (함수의 내용들을 수행하는 동안 구조체 내부 값이 변동될 수 있음, 아래와 같은 내용들이 있음)
 
-		(1) 예약하려는 섹터 수 (`conext.nsect_total`)
+	(1) 예약하려는 섹터 수 (`conext.nsect_total`)
 
-		(2) 캐쉬로부터 예약이 완료되기 까지 남은 섹터 수 (`context.n_cache_reserve_remaining`)
+	(2) 캐쉬로부터 예약이 완료되기 까지 남은 섹터 수 (`context.n_cache_reserve_remaining`)
 
-		(3) 예약된 섹터의 id를 기록할 수 있는 공간 (`context.vsidp`)
+	(3) 예약된 섹터의 id를 기록할 수 있는 공간 (`context.vsidp`)
 
-		(4) 캐쉬로부터 예약을 진행한 섹터 수 (`context.n_cache_vol_reserve`)
+	(4) 캐쉬로부터 예약을 진행한 섹터 수 (`context.n_cache_vol_reserve`)
 
-		(5) 예약 대상이 되는 볼륨의 이용 목적 (`context.purpose`)
+	(5) 예약 대상이 되는 볼륨의 이용 목적 (`context.purpose`)
 
 * bool * did_extend
 
-	:	섹터 예약에 있어서 볼륨의 extend가 발생했는지 기록 (`disk_reserve_from_cache` 함수는 에러 코드를 반환하도록 되어 있으므로 추가적인 반환을 위해선 포인터 전달이 필요)
+	섹터 예약에 있어서 볼륨의 extend가 발생했는지 기록 (`disk_reserve_from_cache` 함수는 에러 코드를 반환하도록 되어 있으므로 추가적인 반환을 위해선 포인터 전달이 필요)
 
 <br/>
 
@@ -214,15 +218,15 @@ int error_code = NO_ERROR;
 
 * DISK_EXTENDED_INFO * extend_info
 
-	:	`disk_reserve_from_cache`는 TEMPORARY든 PERMANENT든 목적에 관계없이 캐쉬로부터 섹터 예약이 가능해야 하므로, (`context`에 기록된) 목적에 맞는 extend 정보들을 참조할 수 있도록 이용
+	`disk_reserve_from_cache`는 TEMPORARY든 PERMANENT든 목적에 관계없이 캐쉬로부터 섹터 예약이 가능해야 하므로, (`context`에 기록된) 목적에 맞는 extend 정보들을 참조할 수 있도록 이용
 
 * DKNSECTS save_remaining
 
-	:	디스크의 extend를 위해 이용되는 `extend_info`의 `nsect_intention`을 조작하는데 사용되는 변수 (예약하려는 남은 섹터 수인 `context` 구조체 내부의 `n_cache_reserve_remaining`을 통해서 초기화 됨, extend 이전에 높인 `nsect_intention`을 extend 이후에 낮출 필요가 있는데 `n_cache_reserve_remaining`은 extend 과정에서 예약을 진행하면서 그 값이 변경되기 때문에 `save_remaining`에 예약이 필요한 남은 섹터수를 기록하게 됨)
+	디스크의 extend를 위해 이용되는 `extend_info`의 `nsect_intention`을 조작하는데 사용되는 변수 (예약하려는 남은 섹터 수인 `context` 구조체 내부의 `n_cache_reserve_remaining`을 통해서 초기화 됨, extend 이전에 높인 `nsect_intention`을 extend 이후에 낮출 필요가 있는데 `n_cache_reserve_remaining`은 extend 과정에서 예약을 진행하면서 그 값이 변경되기 때문에 `save_remaining`에 예약이 필요한 남은 섹터수를 기록하게 됨)
 
 * int error_code
 
-	:	함수 내에서 특정 작업 수행 후, 에러 여부 기록 용도의 변수
+	함수 내에서 특정 작업 수행 후, 에러 여부 기록 용도의 변수
 
 <br/>
 
@@ -430,6 +434,133 @@ return NO_ERROR;
 <br/>
 
 ## 7) disk_reserve_from_cache_vols
+### 1. Parameters
+```c
+STATIC_INLINE void
+disk_reserve_from_cache_vols (DB_VOLTYPE type, DISK_RESERVE_CONTEXT * context)
+```
+
+* #### DB_VOLTYPE type
+
+	예약을 진행하려는 볼륨의 타입
+
+* #### DISK_RESERVE_CONTEXT * context
+
+	`disk_reserve_from_cache` 함수의 동일 인자 참고
+
+<br/>
+
+### 2. Automatics
+```c
+VOLID volid_iter;
+VOLID start_iter, end_iter, incr;
+DKNSECTS min_free;
+```
+
+* #### VOLID volid_iter
+
+	`start_iter`와 `end_iter`까지 반복을 수행할 때 사용할 인덱스 용도의 변수
+
+* #### VOLID start_iter, end_iter, incr;
+
+	시작 인덱스, 끝 인덱스, 증감 방향 및 크기
+
+* #### DKNSECTS min_free
+
+	예약을 진행할 수 있는최소의 가용 섹터 수
+
+<br/>
+
+### 3. Flows
+(1) 인자로 받은 `DB_VOLTYPE`과 `DB_VOLPURPOSE`가 유효한 값인지 확인 (Temporary 타입의 Permanent 목적을 걸러내기 위함)
+```c
+assert (disk_compatible_type_and_purpose (type, context->purpose));
+```
+
+<br/>
+
+(2) `DB_VOLTYPE`에 맞춰서 `start_iter`, `end_iter`, `incr`와 `min_free`를 설정
+
+a. `type == DB_PERMANENT_VOLTYPE`
+
+* `start_iter`는 0부터 시작
+
+* `end_iter`는 Permanent 타입의 볼륨 수까지
+
+* `incr`는 1개씩 증가 방향
+
+* `min_free`는 (`context`에 기록되어 있는) 예약해야 하는 총 섹터 수와 `Permanent` 목적의 한 볼륨이 가질 수 있는 최대 섹터 수 중 더 작은 값을 절반으로 나눈 값
+
+```c
+if (type == DB_PERMANENT_VOLTYPE)
+{
+	start_iter = 0;
+	end_iter = disk_Cache->nvols_perm;
+	incr = 1;
+
+	min_free = MIN (context->nsect_total, disk_Cache->perm_purpose_info.extend_info.nsect_vol_max) / 2;
+}
+```
+
+b. `type == DB_TEMPORARY_VOLTYPE`
+
+* `start_iter`는 `LOG_MAX_DB_VOLID`로 VOLID_MAX - 1의 인덱스부터 시작
+
+* `end_iter`는 `LOG_MAX_DB_VOLID`에서 Temporary 타입의 볼륨 수만큼 뺀 수까지
+
+* `incr`는 1개씩 감소 방향`
+
+* `min_free`는 (`context`에 기록되어 있는) 예약해야 하는 총 섹터 수와 `Temporary` 목적의 한 볼륨이 가질 수 있는 최대 섹터 수 중 더 작은 값을 절반으로 나눈 값
+
+```c
+else
+{
+	start_iter = LOG_MAX_DBVOLID;
+	end_iter = LOG_MAX_DBVOLID - disk_Cache->nvols_temp;
+	incr = -1;
+
+	min_free = MIN (context->nsect_total, disk_Cache->temp_purpose_info.extend_info.nsect_vol_max) / 2;
+}
+```
+
+<br/>
+
+(3) 각 목적의 `nsect_vol_max`는 `PRM_ID_DB_VOLUME_SIZE` 인덱스에 해당하는 값을 읽어와서 `min_free` 값이  계산 되기 때문에 읽어온 값이 올바르지 않으면, 위 과정의 `MIN` 함수에 의해 `min_free`가 원하지 않는 값으로 초기화 될 수 있음
+
+`min_free`라는 값은 볼륨의 예약할 수 있는 섹터 수가 충분한지 확인할 때 사용되고, 의미 상 적어도 1개의 섹터가 적절함
+
+따라서 `min_free`로 결정된 값은 1 이상의 값이 되어야 함
+
+```c
+min_free = MAX (min_free, 1);
+```
+
+	> 예약하려는 총 섹터 수가 볼륨이 가질 수 있는 최대 섹터 수보다 작은 경우
+	min_free는 예약하려는 총 섹터 수의 절반
+
+	> 예약하려는 총 섹터 수가 볼륨이 가질 수 있는 최대 섹터 수보다 큰 경우
+	min_free는 볼륨이 가질 수 있는 총 섹터 수의 절반
+
+<br/>
+
+(4) `volid_iter`를 이용하여 `start_iter`부터 `end_iter`까지 `incr`만큼 증감하여 `disk_reserve_from_cache_volume` 함수를 호출 (이 때 조건 검사로 볼륨의 목적이 맞지 않는지, 볼륨의 가용 섹터 수가 적어도 `min_free` 이상 보유가 되어 있는지 확인, 만일 조건에 하나라도 어긋나면 다음 볼륨으로 넘어감)
+```c
+for (volid_iter = start_iter; volid_iter != end_iter && context->n_cache_reserve_remaining > 0; volid_iter += incr)
+{
+	if (disk_Cache->vols[volid_iter].purpose != context->purpose)
+	{
+		/* not the right purpose. */
+		continue;
+	}
+	if (disk_Cache->vols[volid_iter].nsect_free < min_free)
+	{
+		/* avoid unnecessary fragmentation */
+		continue;
+	}
+	/* reserve from this volume */
+	disk_reserve_from_cache_volume (volid_iter, context);
+}
+```
 
 <br/>
 
@@ -438,18 +569,4 @@ return NO_ERROR;
 <br/>
 
 ## 9) disk_cache_update_vol_free
-
-<br/>
-
-## 10) disk_extend
-
-<br/>
-
-## 11) disk_volume_expand
-
-<br/>
-
-## 12) disk_add_volume
-
-<br/>
 
