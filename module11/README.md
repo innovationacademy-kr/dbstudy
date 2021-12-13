@@ -252,9 +252,9 @@ disk_cache_lock_reserve_for_purpose (context->purpose);
 
 <br/>
 
-(3) a. 목적이 TEMPORARY인 경우에는 VOLTYPE이 PERMANENT인 볼륨에서 먼저 예약 진행 (이 과정에서 단순하게 예약이 완료 되면 목적에 따른 LOCK을 해제하고 NO_ERROR 반환)
+(3) a. 목적이 Temporary인 경우에는 `DB_PERMANENT_VOLTYPE`인 볼륨에서 먼저 예약 진행 (이 과정에서 단순하게 예약이 완료 되면 목적에 따른 LOCK을 해제하고 NO_ERROR 반환)
 
-현재 예약이 되어 차지하고 있는 섹터 수 + 앞으로 예약이 필요한 섹터수가 VOLTYPE이 TEMPORARY인 볼륨의 섹터수보다 크거나 같다면, 목적에 따른 LOCK을 해제하고 공간 초과 에러를 반환 (만일 에러가 발생하지 않으면 그대로 분기문을 탈출)
+현재 예약이 되어 차지하고 있는 섹터 수 + 앞으로 예약이 필요한 섹터수가 `DB_TEMPORARY_VOLTYPE`인 볼륨의 섹터 수보다 크거나 같다면, 목적에 따른 LOCK을 해제하고 공간 초과 에러를 반환 (만일 에러가 발생하지 않으면 그대로 분기문을 탈출)
 
 이 때의 `extend_info`는 `&disk_Cache->temp_purpose_info.extend_info`가 됨
 ```c
@@ -294,7 +294,7 @@ if (context->purpose == DB_TEMPORARY_DATA_PURPOSE)
 
 <br/>
 
-(3) b. 목적이 PERMANENT인 경우에는 VOLTYPE이 PERMANENT인 볼륨에서 바로 진행하면 됨
+(3) b. 목적이 Permanent인 경우에는 `DB_PERMANENT_VOLTYPE`인 볼륨에서 바로 진행하면 됨
 
 따라서 `extend_info`는 `&disk_Cache->perm_purpose_info.extend_info`가 됨
 ```c
@@ -307,7 +307,7 @@ else
 
 <br/>
 
-(4) 목적이 TEMPORARY 라면 VOLTYPE == TEMPORARY, 목적이 PERMANENT 라면 VOLTYPE == PERMANENT 로 예약을 진행할 수 있게 됨
+(4) 목적이 Temporary 라면 `DB_TEMPORARY_VOLTYPE`, 목적이 Permanent 라면 `DB_PERMANENT_VOLTYPE` 로 예약을 진행할 수 있게 됨
 
 <br/>
 
@@ -474,7 +474,7 @@ DKNSECTS min_free;
 <br/>
 
 ### 3. Flows
-(1) 인자로 받은 `DB_VOLTYPE`과 `DB_VOLPURPOSE`가 유효한 값인지 확인 (Temporary 타입의 Permanent 목적을 걸러내기 위함)
+(1) 인자로 받은 `DB_VOLTYPE`과 `DB_VOLPURPOSE`가 유효한 값인지 확인 (`DB_TEMPORARY_VOLTYPE`이면서 목적이  Permanent인 대상을 걸러내기 위함)
 ```c
 assert (disk_compatible_type_and_purpose (type, context->purpose));
 ```
@@ -491,7 +491,7 @@ a. `type == DB_PERMANENT_VOLTYPE`
 
 * `incr`는 1개씩 증가 방향
 
-* `min_free`는 (`context`에 기록되어 있는) 예약해야 하는 총 섹터 수와 `Permanent` 목적의 한 볼륨이 가질 수 있는 최대 섹터 수 중 더 작은 값을 절반으로 나눈 값
+* `min_free`는 (`context`에 기록되어 있는) 예약해야 하는 총 섹터 수와 Permanent 목적의 한 볼륨이 가질 수 있는 최대 섹터 수 중 더 작은 값을 절반으로 나눈 값
 
 ```c
 if (type == DB_PERMANENT_VOLTYPE)
@@ -512,7 +512,7 @@ b. `type == DB_TEMPORARY_VOLTYPE`
 
 * `incr`는 1개씩 감소 방향`
 
-* `min_free`는 (`context`에 기록되어 있는) 예약해야 하는 총 섹터 수와 `Temporary` 목적의 한 볼륨이 가질 수 있는 최대 섹터 수 중 더 작은 값을 절반으로 나눈 값
+* `min_free`는 (`context`에 기록되어 있는) 예약해야 하는 총 섹터 수와 Temporary 목적의 한 볼륨이 가질 수 있는 최대 섹터 수 중 더 작은 값을 절반으로 나눈 값
 
 ```c
 else
@@ -664,4 +664,109 @@ assert (context->n_cache_reserve_remaining >= 0);
 <br/>
 
 ## 9) disk_cache_update_vol_free
+### 1. Parameters
+```c
+STATIC_INLINE void
+disk_cache_update_vol_free (VOLID volid, DKNSECTS delta_free)
+```
 
+* #### VOLID volid
+
+	가용 섹터 수를 조정하려는 볼륨 ID
+
+* #### DKNSECTS delta_free
+
+	캐쉬의 가용 섹터 수를 갱신하기 위한 변화량
+
+<br/>
+
+### Flows
+(1) 캐쉬의 가용 섹터 수를 조정할 때는 이를 조작하기 위한 LOCK을 획득한 상태여야 함
+
+볼륨의 가용 섹터 수를 `delta_free`만큼 더함 (`delta_free`는 음수 일 수 있음)
+
+이에 대한 결과는 0 이상의 값이어야 함
+```c
+/* must be locked */
+disk_Cache->vols[volid].nsect_free += delta_free;
+assert (disk_Cache->vols[volid].nsect_free >= 0);
+```
+
+<br/>
+
+(2) `context`의 목적에 맞는 `extend_info`에 쓰레드 엔트리 인덱스를 기록하고 있는 `owner_reserve` 값이 `thread_get_current_entry_index` 함수의 호출 결과와 같은지 검증
+```c
+disk_check_own_reserve_for_purpose (disk_Cache->vols[volid].purpose);
+```
+
+<br/>
+
+(3) a. 목적이 Permanent 인 경우에는 `DB_PERMANENT_VOLTYPE` 이어야 하므로 이에 대한 검증을 진행
+
+목적에 해당되는 `extend_info` 역시 가용 섹터 수를 변경 시켜야 하므로 `delta_free`만큼 증감을 진행
+
+이에 대한 결과로 목적에 해당되는 `extend_info`의 가용 섹터 수는 0 이상이어야 함
+
+검증이 끝나면 로그를 남김
+```c
+if (disk_Cache->vols[volid].purpose == DB_PERMANENT_DATA_PURPOSE)
+{
+	assert (disk_get_voltype (volid) == DB_PERMANENT_VOLTYPE);
+	disk_Cache->perm_purpose_info.extend_info.nsect_free += delta_free;
+	assert (disk_Cache->perm_purpose_info.extend_info.nsect_free >= 0);
+
+	disk_log ("disk_cache_update_vol_free", "updated cached free for volid %d to %d and perm_perm to %d; "
+		"delta free = %d", volid, disk_Cache->vols[volid].nsect_free,
+		disk_Cache->perm_purpose_info.extend_info.nsect_free, delta_free);
+}
+```
+
+<br/>
+
+(3) b. 목적이 Temporary라면 `DB_PERMANENT_VOLTYPE` 인지, `DB_TEMPORARY_VOLTYPE` 인지에 따라 수행 로직이 달라짐
+
+<br/>
+
+(4) a. 목적이 Temporary 이면서, `DB_PERMANENT_VOLTYPE` 인 경우
+
+해당되는 `extend_info`의 가용 섹터수를 변경 시켜야 하므로 `delta_free`만큼 증감을 진행
+
+이에 대한 결과로 목적에 해당되는 `extend_info`의 가용 섹터 수는 0 이상이어야 함
+
+검증이 끝나면 로그를 남김
+```c
+if (disk_get_voltype (volid) == DB_PERMANENT_VOLTYPE)
+{
+	disk_Cache->temp_purpose_info.nsect_perm_free += delta_free;
+	assert (disk_Cache->temp_purpose_info.nsect_perm_free >= 0);
+
+	disk_log ("disk_cache_update_vol_free", "updated cached free for volid %d to %d and perm_temp to %d; "
+		"delta free = %d", volid, disk_Cache->vols[volid].nsect_free,
+		disk_Cache->temp_purpose_info.nsect_perm_free, delta_free);
+}
+```
+
+단, 목적이 Temporary이면서 `DB_PERMANENT_VOLTYPE` 일 때는 `disk_Cache`의 `DISK_TEMP_PURPOSE_INFO`의 `nsect_perm_free`를 증감
+
+<br/>
+
+(4) b. 목적이 Temporary 이면서, `DB_TEMPORARY_VOLTYPE` 인 경우
+
+해당되는 `extend_info`의 가용 섹터수를 변경 시켜야 하므로 `delta_free`만큼 증감을 진행
+
+이에 대한 결과로 목적에 해당되는 `extend_info`의 가용 섹터 수는 0 이상이어야 함
+
+검증이 끝나면 로그를 남김
+```c
+else
+{
+	disk_Cache->temp_purpose_info.extend_info.nsect_free += delta_free;
+	assert (disk_Cache->temp_purpose_info.extend_info.nsect_free >= 0);
+
+	disk_log ("disk_cache_update_vol_free", "updated cached free for volid %d to %d and temp_temp to %d; "
+		"delta free = %d", volid, disk_Cache->vols[volid].nsect_free,
+		disk_Cache->temp_purpose_info.extend_info.nsect_free, delta_free);
+}
+```
+
+단, 목적이 Temporary이면서 `DB_TEMPORARY_VOLTYPE` 일 때는 `disk_Cache`의 `DISK_TEMP_PURPOSE_INFO`의 `DISK_EXTEND_INFO`의 `nsect_free`를 증감
