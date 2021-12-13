@@ -405,7 +405,7 @@ disk_cache_unlock_reserve (extend_info);
 
 <br/>
 
-(9) 디스크 extend 과정에서 이미 섹터 예약이 모두 끝났고, 더 이상의 extend는 필요 없으므로 extend 전용 LOCK도해제
+(9) 디스크 extend 과정에서 이미 섹터 예약이 모두 끝났고, 더 이상의 extend는 필요 없으므로 extend 전용 LOCK도 해제
 ```c
 disk_unlock_extend ();
 ```
