@@ -88,7 +88,7 @@ int me = thread_get_current_entry_index ();
 
 <br/>
 
-(2) LOCK을 해제한다는 것은 기존에 취득한 LOCK을 놓겠다는 의미이고, LOCK을 획득했을 때는 `owner_reserve`에 me를 기록해두었기 떄문에 LOCK을 해제하기 이전에 LOCK을 소지하고 있는지 여부를 검증
+(2) LOCK을 해제한다는 것은 기존에 취득한 LOCK을 놓겠다는 의미이고, LOCK을 획득했을 때는 `owner_reserve`에 `me`를 기록해두었기 떄문에 LOCK을 해제하기 이전에 LOCK을 소지하고 있는지 여부를 검증
 ```c
 assert (me == extend_info->owner_reserve);
 ```
