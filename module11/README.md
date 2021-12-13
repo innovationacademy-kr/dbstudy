@@ -429,4 +429,27 @@ return NO_ERROR;
 
 <br/>
 
+## 7) disk_reserve_from_cache_vols
+
+<br/>
+
+## 8) disk_reserve_from_cache_volume
+
+<br/>
+
+## 9) disk_cache_update_vol_free
+
+<br/>
+
+## 10) disk_extend
+
+<br/>
+
+## 11) disk_volume_expand
+
+<br/>
+
+## 12) disk_add_volume
+
+<br/>
 
