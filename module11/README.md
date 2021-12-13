@@ -252,7 +252,7 @@ disk_cache_lock_reserve_for_purpose (context->purpose);
 
 <br/>
 
-(3) a. 목적이 Temporary인 경우에는 `DB_PERMANENT_VOLTYPE`인 볼륨에서 먼저 예약 진행 (이 과정에서 단순하게 예약이 완료 되면 목적에 따른 LOCK을 해제하고 NO_ERROR 반환)
+(3) a. 목적이 Temporary인 경우에는 `DB_PERMANENT_VOLTYPE`인 볼륨에서 먼저 예약 진행 (이 과정에서 단순하게 예약이 완료 되면 목적에 따른 LOCK을 해제하고 `NO_ERROR` 반환)
 
 현재 예약이 되어 차지하고 있는 섹터 수 + 앞으로 예약이 필요한 섹터수가 `DB_TEMPORARY_VOLTYPE`인 볼륨의 섹터 수보다 크거나 같다면, 목적에 따른 LOCK을 해제하고 공간 초과 에러를 반환 (만일 에러가 발생하지 않으면 그대로 분기문을 탈출)
 
@@ -319,7 +319,7 @@ assert (extend_info->owner_reserve == thread_get_entry_index (thread_p));
 
 <br/>
 
-(6) a. 볼륨 내의 가용 공간 수가 예약하려는 섹터수보다 커서 예약 진행이 가능하다면, `disk_reserve_from_cache_vols`를 호출하여 예약을 진행 (이 때 예약하려는 섹터의 수가 0 이하 값이 된다면 예약을 무사히 진행한 것이므로, 목적에 따른 LOCK을 해제하고 NO_ERROR를 반환)
+(6) a. 볼륨 내의 가용 공간 수가 예약하려는 섹터수보다 커서 예약 진행이 가능하다면, `disk_reserve_from_cache_vols`를 호출하여 예약을 진행 (이 때 예약하려는 섹터의 수가 0 이하 값이 된다면 예약을 무사히 진행한 것이므로, 목적에 따른 LOCK을 해제하고 `NO_ERROR`를 반환)
 
 ```c
 if (extend_info->nsect_free > context->n_cache_reserve_remaining)
@@ -343,7 +343,7 @@ if (extend_info->nsect_free > context->n_cache_reserve_remaining)
 
 (7) a. extend 전용 LOCK을 획득하는 과정에서 이미 다른 쓰레드 엔트리가 extend를 수행했을 수 있기 때문에, 다시 목적에 따른 LOCK을 획득하여 이를 판별
 
-만일 이미 extend가 되어 있다면 굳이 현재 쓰레드 엔트리에서 extend를 수행할 필요가 없으므로, 섹터 예약 후에 목적에 따른 LOCK 해제 및 extend 전용 LOCK을 해제하고 NO_ERROR를 반환
+만일 이미 extend가 되어 있다면 굳이 현재 쓰레드 엔트리에서 extend를 수행할 필요가 없으므로, 섹터 예약 후에 목적에 따른 LOCK 해제 및 extend 전용 LOCK을 해제하고 `NO_ERROR`를 반환
 ```c
 disk_cache_unlock_reserve (extend_info);
 
@@ -414,7 +414,7 @@ disk_unlock_extend ();
 
 (10) 위 과정 동안 에러가 없었는지 확인하고, 예약하려는 섹터가 남았는지 확인
 
-문제가 없다면 `did_extend`를 `true`로 만들고 NO_ERROR를 반환 (extend 되지 않고 정상적으로 예약이 되었다면 (3) a 혹은 (6) a에서 종료)
+문제가 없다면 `did_extend`를 `true`로 만들고 `NO_ERROR`를 반환 (extend 되지 않고 정상적으로 예약이 되었다면 (3) a 혹은 (6) a에서 종료)
 ```c
 if (error_code != NO_ERROR)
 {
