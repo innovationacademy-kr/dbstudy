@@ -181,7 +181,12 @@ pthread_mutex_unlock (&disk_Cache->mutex_extend);
 <br/>
 
 ## 6) disk_reserve_from_cache
-### 1. Parameters
+### 1. Purpose
+필요한 섹터들을 캐쉬로부터 사전 예약하는 함수
+
+<br/>
+
+### 2. Parameters
 ```c
 static int
 disk_reserve_from_cache (THREAD_ENTRY * thread_p, DISK_RESERVE_CONTEXT * context, bool * did_extend)
@@ -211,7 +216,7 @@ disk_reserve_from_cache (THREAD_ENTRY * thread_p, DISK_RESERVE_CONTEXT * context
 
 <br/>
 
-### 2. Automatics
+### 3. Automatics
 ```c
 DISK_EXTEND_INFO *extend_info;
 DKNSECTS save_remaining;
@@ -232,7 +237,7 @@ int error_code = NO_ERROR;
 
 <br/>
 
-### 3. Flows
+### 4. Flows
 (1) 디스크 캐쉬가 초기화 되어 존재하고 있는지 확인
 ```c
 if (disk_Cache == NULL)
@@ -436,7 +441,12 @@ return NO_ERROR;
 <br/>
 
 ## 7) disk_reserve_from_cache_vols
-### 1. Parameters
+### 1. Purpose
+예약이 필요한 섹터들을 DB의 볼륨들로부터 사전 예약을 진행하기 위해, 목적에 따라 반복 형태와 증감 방향을 정하여 각 볼륨마다 사전 예약 정보를 진행할 수 있게 해주는 함수
+
+<br/>
+
+### 2. Parameters
 ```c
 STATIC_INLINE void
 disk_reserve_from_cache_vols (DB_VOLTYPE type, DISK_RESERVE_CONTEXT * context)
@@ -452,7 +462,7 @@ disk_reserve_from_cache_vols (DB_VOLTYPE type, DISK_RESERVE_CONTEXT * context)
 
 <br/>
 
-### 2. Automatics
+### 3. Automatics
 ```c
 VOLID volid_iter;
 VOLID start_iter, end_iter, incr;
@@ -469,11 +479,11 @@ DKNSECTS min_free;
 
 * #### DKNSECTS min_free
 
-	예약을 진행할 수 있는최소의 가용 섹터 수
+	예약을 진행할 수 있는 최소의 가용 섹터 수
 
 <br/>
 
-### 3. Flows
+### 4. Flows
 (1) 인자로 받은 `DB_VOLTYPE`과 `DB_VOLPURPOSE`가 유효한 값인지 확인 (`DB_TEMPORARY_VOLTYPE`이면서 목적이  Permanent인 대상을 걸러내기 위함)
 ```c
 assert (disk_compatible_type_and_purpose (type, context->purpose));
@@ -567,7 +577,12 @@ for (volid_iter = start_iter; volid_iter != end_iter && context->n_cache_reserve
 <br/>
 
 ## 8) disk_reserve_from_cache_volume
-### 1. Parameters
+### 1. Purpose
+예약이 필요한 섹터들을 DB의 각 볼륨으로부터 사전 예약을 진행하는 함수
+
+<br/>
+
+### 2. Parameters
 ```c
 STATIC_INLINE void
 disk_reserve_from_cache_volume (VOLID volid, DISK_RESERVE_CONTEXT * context)
@@ -583,7 +598,7 @@ disk_reserve_from_cache_volume (VOLID volid, DISK_RESERVE_CONTEXT * context)
 
 <br/>
 
-### 2. Automatics
+### 3. Automatics
 ```c
 DKNSECTS nsects;
 ```
@@ -594,7 +609,7 @@ DKNSECTS nsects;
 
 <br/>
 
-### 3. Flows
+### 4. Flows
 (1) 예약을 진행한 볼륨의 수가 `LOG_MAX_DBVOLID`보다 작아야 하므로, 이에 대한 검증을 진행
 ```c
 if (context->n_cache_vol_reserve >= LOG_MAX_DBVOLID)
@@ -664,7 +679,12 @@ assert (context->n_cache_reserve_remaining >= 0);
 <br/>
 
 ## 9) disk_cache_update_vol_free
-### 1. Parameters
+### 1. Purpose
+사전 예약을 진행하면서 각 볼륨마다 유지하고 있는 가용 섹터 수를 캐쉬 내에 `delta_free`만큼 반영하는 함수
+
+<br/>
+
+### 2. Parameters
 ```c
 STATIC_INLINE void
 disk_cache_update_vol_free (VOLID volid, DKNSECTS delta_free)
@@ -680,7 +700,7 @@ disk_cache_update_vol_free (VOLID volid, DKNSECTS delta_free)
 
 <br/>
 
-### Flows
+### 3. Flows
 (1) 캐쉬의 가용 섹터 수를 조정할 때는 이를 조작하기 위한 LOCK을 획득한 상태여야 함
 
 볼륨의 가용 섹터 수를 `delta_free`만큼 더함 (`delta_free`는 음수 일 수 있음)
