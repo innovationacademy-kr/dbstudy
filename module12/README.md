@@ -24,8 +24,9 @@ dwb_slots_hash_insert (THREAD_ENTRY * thread_p, VPID * vpid, DWB_SLOT * slot, bo
   *inserted = dwb_Global.slots_hashmap.find_or_insert (thread_p, *vpid, slots_hash_entry);
 /*
  * lf_hash_find_or_insert () - find or insert an entry in the hash table
- 	hashmap에서 vpid를 찾으면 위치를 저장하고, 없으면 insert
-	find -> 0  insert -> 1 
+ vpid 를 key 값으로 dwb_global 변수의 slots_hashmap 변수에서 해쉬 함수를 사용해 value 를 가져오고 해쉬맵을 탐색한다.
+해쉬맵에서 slots_hash_entry 가 있으면 가져오고 inserted 0,
+없으면 thread_p의 freelist에서 받아와 해쉬맵에 추가하고 inserted 1로 설정한다.
  */
   assert (VPID_EQ (&slots_hash_entry->vpid, &slot->vpid));
   /*
