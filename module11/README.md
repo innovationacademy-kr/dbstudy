@@ -27,6 +27,10 @@ disk_reserve_from_cache
 
 <br/>
 
+(`disk_extend` 함수는 이후 주차의 발표자가 진행할 예정이며, `disk_lock_extend`와 `disk_unlock_extend` 함수 역시 이번 주차의 발표 주제를 벗어남)
+
+<br/>
+
 ## 2) disk_cache_lock_reserve_for_purpose & disk_cache_lock_reserve
 ### 1. Purpose
 캐쉬로부터 섹터 예약을 진행하는 과정에서 볼륨의 목적에 맞는 LOCK을 취득하기 위한 함수
