@@ -1,6 +1,7 @@
 # 11. Disk Manager (4th Week)
 
 ## 1) Major Functions
+### 1. Structures
 ```c
 disk_reserve_from_cache
 │
@@ -28,6 +29,31 @@ disk_reserve_from_cache
 <br/>
 
 (`disk_extend` 함수는 이후 주차의 발표자가 진행할 예정이며, `disk_lock_extend`와 `disk_unlock_extend` 함수 역시 이번 주차의 발표 주제를 벗어남)
+
+<br/>
+
+### 2. Diagram
+(1) `disk_reserve_from_cache` calls
+
+<div style="display:flex" align="center">
+    <img src="images/1.png" alt="1" width="800"/>
+</div>
+
+<br/>
+
+(2) `disk_reserve_from_cache_vols` calls
+
+<div style="display:flex" align="center">
+    <img src="images/2.png" alt="2" width="800"/>
+</div>
+
+<br/>
+
+(3) `disk_reserve_from_cache_volume` calls
+
+<div style="display:flex" align="center">
+    <img src="images/3.png" alt="3" width="800"/>
+</div>
 
 <br/>
 
