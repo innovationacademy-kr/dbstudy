@@ -250,7 +250,7 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
       disk_stab_cursor_set_at_sectid(volheader, ✅ volheader->hint_allocsect, &start_cursor); // at hint
       disk_stab_cursor_set_at_end(volheader, &end_cursor);
 
-      /* reserve sectors after hint */
+      /* reserve sectors after hint */              // ...0000000111✅00000111... 8 free sectors
       error_code = disk_stab_iterate_units(thread_p, volheader, PGBUF_LATCH_WRITE, &start_cursor, &end_cursor,
                                           disk_stab_unit_reserve, context);
       if (error_code != NO_ERROR)
@@ -416,7 +416,7 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
     * otherwise, we iterate bit by bit and reserve free sectors.
     */
 
-    if (*cursor->unit == BIT64_FULL)
+    if (*cursor->unit == BIT64_FULL) // 1. full unit
     {
       /* nothing free */
       return NO_ERROR;
@@ -425,7 +425,7 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
     context = (DISK_RESERVE_CONTEXT *)args;
     assert(context->nsects_lastvol_remaining > 0);
 
-    // *cursor->unit == bit64 of free sectors
+    // 2. empty unit // *cursor->unit == bit64 of free sectors
     if (*cursor->unit == 0)
     {
       /* empty unit. set all required bits */
@@ -454,7 +454,7 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
         context->vsidp->volid = cursor->volheader->volid;
         context->vsidp->sectid = sectid;
         context->vsidp++;
-
+        //log가 먼저 찍혀야 되는거 아닌가?
         disk_log("disk_stab_unit_reserve", "reserved sectid %d in volume %d.", sectid, cursor->volheader->volid);
       }
     }
@@ -462,10 +462,13 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
     {
       /* iterate through unit bits */ // one by one
       log_unit = 0;
+      // offset_to_bit <= count bit. bit should 연속적으로 찍혀야함. 아니면 거의 0 나옴.
+      // 그런경우에는 그냥 순회 돌게 한듯.
       for (cursor->offset_to_bit = bit64_count_trailing_ones(*cursor->unit), cursor->sectid += cursor->offset_to_bit;
           cursor->offset_to_bit < DISK_STAB_UNIT_BIT_COUNT && context->nsects_lastvol_remaining > 0;
           cursor->offset_to_bit++, cursor->sectid++)
       {
+        // disk_stab_cursor_is_bit_set() 안에서 체크 한번 더함.
         disk_stab_cursor_check_valid(cursor);
 
         if (!disk_stab_cursor_is_bit_set(cursor)) // check offset_to_bit is set
@@ -483,7 +486,7 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
           context->vsidp->volid = cursor->volheader->volid;
           context->vsidp->sectid = cursor->sectid;
           context->vsidp++;
-
+          //log를 먼저찍는게 유리하지 않나요?
           disk_log("disk_stab_unit_reserve", "reserved sectid %d in volume %d.", cursor->sectid,
                   cursor->volheader->volid);
         }
@@ -507,12 +510,62 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
     {
       /* all required sectors are reserved, we can stop now */
       assert(context->nsects_lastvol_remaining == 0);
-      *stop = true;
+      ✅ *stop = true;
     }
     return NO_ERROR;
   }
 
   ```
+
+  - <details>
+    <summary> disk_stab_cursor_check_valid ()</summary>
+
+    ```c
+        /*
+    * disk_stab_cursor_check_valid () - Check allocation table cursor validity.
+    *
+    * return      : void.
+    * cursor (in) : Allocation table cursor.
+    *
+    * NOTE: This is a debug function.
+    */
+    STATIC_INLINE void
+    disk_stab_cursor_check_valid(const DISK_STAB_CURSOR *cursor)
+    {
+      assert(cursor != NULL);
+
+      if (cursor->pageid == NULL_PAGEID)
+      {
+        /* Must be recovery. */
+        assert(!LOG_ISRESTARTED());
+      }
+      else
+      {
+        /* Cursor must have valid volheader pointer. */
+        assert(cursor->volheader != NULL);
+
+        /* Cursor must have a valid position. */
+        assert(cursor->pageid >= cursor->volheader->stab_first_page);
+        assert(cursor->pageid < cursor->volheader->stab_first_page + cursor->volheader->stab_npages);
+        assert((cursor->pageid - cursor->volheader->stab_first_page) * DISK_STAB_PAGE_BIT_COUNT + cursor->offset_to_unit * DISK_STAB_UNIT_BIT_COUNT + cursor->offset_to_bit == cursor->sectid);
+      }
+
+      assert(cursor->offset_to_unit >= 0);
+      assert(cursor->offset_to_unit < DISK_STAB_PAGE_UNITS_COUNT);
+      assert(cursor->offset_to_bit >= 0);
+      assert(cursor->offset_to_bit < DISK_STAB_UNIT_BIT_COUNT);
+
+      if (cursor->unit != NULL)
+      {
+        /* Must have a page fixed */
+        assert(cursor->page != NULL);
+        /* Unit pointer must match offset_to_unit */
+        assert((int)((char *)cursor->unit - cursor->page) == (int)(cursor->offset_to_unit * DISK_STAB_UNIT_SIZE_OF));
+      }
+    }
+    ```
+
+    </details>
 
   </details>
 
@@ -549,8 +602,3 @@ exit:
 ```
 
 </details>
-
-
-
-## 궁금
-1. log_append_undoredo_data이 뭐하는 함수인가. 1,2 둘다
