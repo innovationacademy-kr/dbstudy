@@ -124,7 +124,7 @@ ___
 ## 3. 함수 분석
 
 <details>
-<summary> initial </summary>
+<summary> 1. initial </summary>
 
 ```c
 
@@ -164,7 +164,7 @@ disk_reserve_sectors_in_volume(THREAD_ENTRY *thread_p, int vol_index, DISK_RESER
 </details>
 
 <details>
-<summary> disk_get_volheader (), disk_log () </summary>
+<summary> 2. disk_get_volheader (), disk_log () </summary>
 
 ```c
 	//... ellipsis
@@ -234,55 +234,53 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
 </details>
 
 <details>
-<summary> reserve all possible sectors. (✅ disk_stab_iterate_units () ) </summary>
+<summary> 3. reserve all possible sectors. (✅ disk_stab_iterate_units () ) </summary>
 
-<details>
+- <details>
+  <summary> if have hint </summary>
 
-<summary> if have hint </summary>
+  ```c
+  // ... ellipsis
 
-```c
-// ... ellipsis
-
-  /* reserve all possible sectors. */
-  if (volheader->hint_allocsect > 0 && volheader->hint_allocsect < volheader->nsect_total)
-  {
-    /* start with hinted sector */
-    DISK_SECTS_ASSERT_ROUNDED(volheader->hint_allocsect);
-    disk_stab_cursor_set_at_sectid(volheader, ✅ volheader->hint_allocsect, &start_cursor); // at hint
-    disk_stab_cursor_set_at_end(volheader, &end_cursor);
-
-    /* reserve sectors after hint */
-    error_code = disk_stab_iterate_units(thread_p, volheader, PGBUF_LATCH_WRITE, &start_cursor, &end_cursor,
-                                         disk_stab_unit_reserve, context);
-    if (error_code != NO_ERROR)
+    /* reserve all possible sectors. */
+    if (volheader->hint_allocsect > 0 && volheader->hint_allocsect < volheader->nsect_total)
     {
-      ASSERT_ERROR();
-      goto exit;
-    }
-    if (context->nsects_lastvol_remaining > 0) // 가용섹터가 힌트 앞에 있을 경우.
-    {
-      /* we need to reserve more. reserve sectors before hint */
-      end_cursor = start_cursor;
-      ✅ disk_stab_cursor_set_at_start(volheader, &start_cursor); // 처음부터 이터레이팅
+      /* start with hinted sector */
+      DISK_SECTS_ASSERT_ROUNDED(volheader->hint_allocsect);
+      disk_stab_cursor_set_at_sectid(volheader, ✅ volheader->hint_allocsect, &start_cursor); // at hint
+      disk_stab_cursor_set_at_end(volheader, &end_cursor);
+
+      /* reserve sectors after hint */
       error_code = disk_stab_iterate_units(thread_p, volheader, PGBUF_LATCH_WRITE, &start_cursor, &end_cursor,
-                                           disk_stab_unit_reserve, context);
+                                          disk_stab_unit_reserve, context);
       if (error_code != NO_ERROR)
       {
         ASSERT_ERROR();
         goto exit;
       }
+      if (context->nsects_lastvol_remaining > 0) // 가용섹터가 힌트 앞에 있을 경우.
+      {
+        /* we need to reserve more. reserve sectors before hint */
+        end_cursor = start_cursor;
+        ✅ disk_stab_cursor_set_at_start(volheader, &start_cursor); // 처음부터 이터레이팅
+        error_code = disk_stab_iterate_units(thread_p, volheader, PGBUF_LATCH_WRITE, &start_cursor, &end_cursor,
+                                            disk_stab_unit_reserve, context);
+        if (error_code != NO_ERROR)
+        {
+          ASSERT_ERROR();
+          goto exit;
+        }
+      }
     }
-  }
 
-```
+  ```
 
-</details>
+  </details>
 
-<details>
+- <details>
+  <summary> if not </summary>
 
-<summary> if not </summary>
-
-```c
+  ```c
 
   else // 처음부터 이터레이팅
   {
@@ -300,228 +298,228 @@ disk_get_volheader_internal(THREAD_ENTRY *thread_p, VOLID volid, PGBUF_LATCH_MOD
 
   // ... ellipsis
 
-```
+  ```
 
-</details>
+  </details>
 
-<details>
-<summary> disk_stab_iterate_units () </summary>
+- <details>
+  <summary> disk_stab_iterate_units () </summary>
 
-```c
+  ```c
 
-/*
- * disk_stab_iterate_units () - iterate through units between start and end and call argument function. start and end
- *                              cursor should be aligned.
- *
- * return           : error code
- * thread_p (in)    : thread entry
- * volheader (in)   : volume header
- * mode (in)        : page latch mode
- * start (in)       : start cursor
- * end (in)         : end cursor
- * f_unit (in)      : function called on each unit
- * f_unit_args (in) : argument for unit function
- */
-static int
-disk_stab_iterate_units(THREAD_ENTRY *thread_p, const DISK_VOLUME_HEADER *volheader, PGBUF_LATCH_MODE mode,
-                        DISK_STAB_CURSOR *start, DISK_STAB_CURSOR *end, DISK_STAB_UNIT_FUNC f_unit,
-                        void *f_unit_args)
-{
-  DISK_STAB_CURSOR cursor;
-  DISK_STAB_UNIT *end_unit;
-  bool stop = false;
-  int error_code = NO_ERROR;
-
-  assert(volheader != NULL);
-  assert(start->offset_to_bit == 0);
-  assert(end->offset_to_bit == 0);
-  assert(disk_stab_cursor_compare(start, end) < 0);
-
-  /* iterate through pages */
-  for (cursor = *start; cursor.pageid <= end->pageid; cursor.pageid++, cursor.offset_to_unit = 0)
+  /*
+  * disk_stab_iterate_units () - iterate through units between start and end and call argument function. start and end
+  *                              cursor should be aligned.
+  *
+  * return           : error code
+  * thread_p (in)    : thread entry
+  * volheader (in)   : volume header
+  * mode (in)        : page latch mode
+  * start (in)       : start cursor
+  * end (in)         : end cursor
+  * f_unit (in)      : function called on each unit
+  * f_unit_args (in) : argument for unit function
+  */
+  static int
+  disk_stab_iterate_units(THREAD_ENTRY *thread_p, const DISK_VOLUME_HEADER *volheader, PGBUF_LATCH_MODE mode,
+                          DISK_STAB_CURSOR *start, DISK_STAB_CURSOR *end, DISK_STAB_UNIT_FUNC f_unit,
+                          void *f_unit_args)
   {
-    assert(cursor.page == NULL);
-    disk_stab_cursor_check_valid(&cursor);
+    DISK_STAB_CURSOR cursor;
+    DISK_STAB_UNIT *end_unit;
+    bool stop = false;
+    int error_code = NO_ERROR;
 
-    error_code = disk_stab_cursor_fix(thread_p, &cursor, mode);
-    if (error_code != NO_ERROR)
+    assert(volheader != NULL);
+    assert(start->offset_to_bit == 0);
+    assert(end->offset_to_bit == 0);
+    assert(disk_stab_cursor_compare(start, end) < 0);
+
+    /* iterate through pages */
+    for (cursor = *start; cursor.pageid <= end->pageid; cursor.pageid++, cursor.offset_to_unit = 0)
     {
-      ASSERT_ERROR();
-      return error_code;
-    }
-
-    /* iterate through units */
-
-    /* set end_unit */
-    end_unit = ((DISK_STAB_UNIT *)cursor.page) + (cursor.pageid == end->pageid ? end->offset_to_unit : DISK_STAB_PAGE_UNITS_COUNT);
-
-    /* iterate */
-    for (; cursor.unit < end_unit;
-         cursor.unit++, cursor.offset_to_unit++, ✅ cursor.sectid += (DISK_STAB_UNIT_BIT_COUNT - cursor.offset_to_bit),
-         cursor.offset_to_bit = 0) // unit 단위로 이터레이팅 하려고 안에서 오프셋을 건드려도 일정하게 해주려고
-    {
+      assert(cursor.page == NULL);
       disk_stab_cursor_check_valid(&cursor);
 
-      /* call unit function */
-      error_code = ✅ f_unit(thread_p, &cursor, &stop, f_unit_args);
+      error_code = disk_stab_cursor_fix(thread_p, &cursor, mode);
       if (error_code != NO_ERROR)
       {
         ASSERT_ERROR();
-        disk_stab_cursor_unfix(thread_p, &cursor);
         return error_code;
       }
-      if (stop)
+
+      /* iterate through units */
+
+      /* set end_unit */
+      end_unit = ((DISK_STAB_UNIT *)cursor.page) + (cursor.pageid == end->pageid ? end->offset_to_unit : DISK_STAB_PAGE_UNITS_COUNT);
+
+      /* iterate */
+      for (; cursor.unit < end_unit;
+          cursor.unit++, cursor.offset_to_unit++, ✅ cursor.sectid += (DISK_STAB_UNIT_BIT_COUNT - cursor.offset_to_bit),
+          cursor.offset_to_bit = 0) // unit 단위로 이터레이팅 하려고 안에서 오프셋을 건드려도 일정하게 해주려고
       {
-        /* stop */
-        disk_stab_cursor_unfix(thread_p, &cursor);
-        return NO_ERROR;
+        disk_stab_cursor_check_valid(&cursor);
+
+        /* call unit function */
+        error_code = ✅ f_unit(thread_p, &cursor, &stop, f_unit_args);
+        if (error_code != NO_ERROR)
+        {
+          ASSERT_ERROR();
+          disk_stab_cursor_unfix(thread_p, &cursor);
+          return error_code;
+        }
+        if (stop)
+        {
+          /* stop */
+          disk_stab_cursor_unfix(thread_p, &cursor);
+          return NO_ERROR;
+        }
       }
+
+      disk_stab_cursor_unfix(thread_p, &cursor);
     }
 
-    disk_stab_cursor_unfix(thread_p, &cursor);
-  }
-
-  return NO_ERROR;
-}
-
-
-```
-
-</details>
-
-<details>
-<summary> disk_stab_unit_reserve () </summary>
-
-```c
-
-/*
- * disk_stab_unit_reserve () - DISK_STAB_UNIT_FUNC function used to lookup and reserve free sectors
- *
- * return        : NO_ERROR
- * thread_p (in) : thread entry
- * cursor (in)   : disk sector table cursor
- * stop (out)    : output true when all required sectors are reserved
- * args (in/out) : reserve context
- */
-static int
-disk_stab_unit_reserve(THREAD_ENTRY *thread_p, DISK_STAB_CURSOR *cursor, bool *stop, void *args)
-{
-  DISK_RESERVE_CONTEXT *context;
-  DISK_STAB_UNIT log_unit;
-  SECTID sectid;
-
-  /* how it works
-   * look for unset bits and reserve the required number of sectors.
-   * we have two special cases, which can be very usual:
-   * 1. full unit - nothing can be reserved, so we early out
-   * 2. empty unit - we can consume it all (if we need it all) or just trailing bits.
-   * otherwise, we iterate bit by bit and reserve free sectors.
-   */
-
-  if (*cursor->unit == BIT64_FULL)
-  {
-    /* nothing free */
     return NO_ERROR;
   }
 
-  context = (DISK_RESERVE_CONTEXT *)args;
-  assert(context->nsects_lastvol_remaining > 0);
 
-  // *cursor->unit == bit64 of free sectors
-  if (*cursor->unit == 0)
+  ```
+
+  </details>
+
+- <details>
+  <summary> disk_stab_unit_reserve () </summary>
+
+  ```c
+
+  /*
+  * disk_stab_unit_reserve () - DISK_STAB_UNIT_FUNC function used to lookup and reserve free sectors
+  *
+  * return        : NO_ERROR
+  * thread_p (in) : thread entry
+  * cursor (in)   : disk sector table cursor
+  * stop (out)    : output true when all required sectors are reserved
+  * args (in/out) : reserve context
+  */
+  static int
+  disk_stab_unit_reserve(THREAD_ENTRY *thread_p, DISK_STAB_CURSOR *cursor, bool *stop, void *args)
   {
-    /* empty unit. set all required bits */
-    int bits_to_set = MIN(context->nsects_lastvol_remaining, DISK_STAB_UNIT_BIT_COUNT);
-    int i;
+    DISK_RESERVE_CONTEXT *context;
+    DISK_STAB_UNIT log_unit;
+    SECTID sectid;
 
-    if (bits_to_set == DISK_STAB_UNIT_BIT_COUNT) // full unit
+    /* how it works
+    * look for unset bits and reserve the required number of sectors.
+    * we have two special cases, which can be very usual:
+    * 1. full unit - nothing can be reserved, so we early out
+    * 2. empty unit - we can consume it all (if we need it all) or just trailing bits.
+    * otherwise, we iterate bit by bit and reserve free sectors.
+    */
+
+    if (*cursor->unit == BIT64_FULL)
     {
-      /* Consume all unit */
-      *cursor->unit = BIT64_FULL;
+      /* nothing free */
+      return NO_ERROR;
     }
-    else // partial unit
+
+    context = (DISK_RESERVE_CONTEXT *)args;
+    assert(context->nsects_lastvol_remaining > 0);
+
+    // *cursor->unit == bit64 of free sectors
+    if (*cursor->unit == 0)
     {
-      /* consume only part of unit */
-      *cursor->unit = bit64_set_trailing_bits(*cursor->unit, bits_to_set);
-    }
-    /* what we log */
-    log_unit = *cursor->unit;
+      /* empty unit. set all required bits */
+      int bits_to_set = MIN(context->nsects_lastvol_remaining, DISK_STAB_UNIT_BIT_COUNT);
+      int i;
 
-    /* update reserve context */
-    context->nsects_lastvol_remaining -= bits_to_set;
-
-    /* save sector ids */
-    for (i = 0, sectid = disk_stab_cursor_get_sectid(cursor); i < bits_to_set; i++, sectid++)
-    {
-      context->vsidp->volid = cursor->volheader->volid;
-      context->vsidp->sectid = sectid;
-      context->vsidp++;
-
-      disk_log("disk_stab_unit_reserve", "reserved sectid %d in volume %d.", sectid, cursor->volheader->volid);
-    }
-  }
-  else // already be set
-  {
-    /* iterate through unit bits */ // one by one
-    log_unit = 0;
-    for (cursor->offset_to_bit = bit64_count_trailing_ones(*cursor->unit), cursor->sectid += cursor->offset_to_bit;
-         cursor->offset_to_bit < DISK_STAB_UNIT_BIT_COUNT && context->nsects_lastvol_remaining > 0;
-         cursor->offset_to_bit++, cursor->sectid++)
-    {
-      disk_stab_cursor_check_valid(cursor);
-
-      if (!disk_stab_cursor_is_bit_set(cursor)) // check offset_to_bit is set
+      if (bits_to_set == DISK_STAB_UNIT_BIT_COUNT) // full unit
       {
-        /* reserve this sector */
-        disk_stab_cursor_set_bit(cursor); // set offset_to_bit
+        /* Consume all unit */
+        *cursor->unit = BIT64_FULL;
+      }
+      else // partial unit
+      {
+        /* consume only part of unit */
+        *cursor->unit = bit64_set_trailing_bits(*cursor->unit, bits_to_set);
+      }
+      /* what we log */
+      log_unit = *cursor->unit;
 
-        /* update what we log */
-        log_unit = bit64_set(log_unit, cursor->offset_to_bit);
+      /* update reserve context */
+      context->nsects_lastvol_remaining -= bits_to_set;
 
-        /* update context */
-        context->nsects_lastvol_remaining--;
-
-        /* save vsid */
+      /* save sector ids */
+      for (i = 0, sectid = disk_stab_cursor_get_sectid(cursor); i < bits_to_set; i++, sectid++)
+      {
         context->vsidp->volid = cursor->volheader->volid;
-        context->vsidp->sectid = cursor->sectid;
+        context->vsidp->sectid = sectid;
         context->vsidp++;
 
-        disk_log("disk_stab_unit_reserve", "reserved sectid %d in volume %d.", cursor->sectid,
-                 cursor->volheader->volid);
+        disk_log("disk_stab_unit_reserve", "reserved sectid %d in volume %d.", sectid, cursor->volheader->volid);
       }
     }
+    else // already be set
+    {
+      /* iterate through unit bits */ // one by one
+      log_unit = 0;
+      for (cursor->offset_to_bit = bit64_count_trailing_ones(*cursor->unit), cursor->sectid += cursor->offset_to_bit;
+          cursor->offset_to_bit < DISK_STAB_UNIT_BIT_COUNT && context->nsects_lastvol_remaining > 0;
+          cursor->offset_to_bit++, cursor->sectid++)
+      {
+        disk_stab_cursor_check_valid(cursor);
+
+        if (!disk_stab_cursor_is_bit_set(cursor)) // check offset_to_bit is set
+        {
+          /* reserve this sector */
+          disk_stab_cursor_set_bit(cursor); // set offset_to_bit
+
+          /* update what we log */
+          log_unit = bit64_set(log_unit, cursor->offset_to_bit);
+
+          /* update context */
+          context->nsects_lastvol_remaining--;
+
+          /* save vsid */
+          context->vsidp->volid = cursor->volheader->volid;
+          context->vsidp->sectid = cursor->sectid;
+          context->vsidp++;
+
+          disk_log("disk_stab_unit_reserve", "reserved sectid %d in volume %d.", cursor->sectid,
+                  cursor->volheader->volid);
+        }
+      }
+    }
+
+    /* safe guard: we must have done something, so log_unit cannot be 0 */
+    assert(log_unit != 0);
+    /* safe guard: all bits in log_unit must be set */
+    assert((log_unit & *cursor->unit) == log_unit);
+    if (context->purpose == DB_PERMANENT_DATA_PURPOSE)
+    {
+      /* log changes */
+      log_append_undoredo_data2(thread_p, RVDK_RESERVE_SECTORS, NULL, cursor->page, cursor->offset_to_unit,
+                                sizeof(log_unit), sizeof(log_unit), &log_unit, &log_unit);
+    }
+    /* page was modified */
+    pgbuf_set_dirty(thread_p, cursor->page, DONT_FREE);
+
+    if (context->nsects_lastvol_remaining <= 0)
+    {
+      /* all required sectors are reserved, we can stop now */
+      assert(context->nsects_lastvol_remaining == 0);
+      *stop = true;
+    }
+    return NO_ERROR;
   }
 
-  /* safe guard: we must have done something, so log_unit cannot be 0 */
-  assert(log_unit != 0);
-  /* safe guard: all bits in log_unit must be set */
-  assert((log_unit & *cursor->unit) == log_unit);
-  if (context->purpose == DB_PERMANENT_DATA_PURPOSE)
-  {
-    /* log changes */
-    log_append_undoredo_data2(thread_p, RVDK_RESERVE_SECTORS, NULL, cursor->page, cursor->offset_to_unit,
-                              sizeof(log_unit), sizeof(log_unit), &log_unit, &log_unit);
-  }
-  /* page was modified */
-  pgbuf_set_dirty(thread_p, cursor->page, DONT_FREE);
+  ```
 
-  if (context->nsects_lastvol_remaining <= 0)
-  {
-    /* all required sectors are reserved, we can stop now */
-    assert(context->nsects_lastvol_remaining == 0);
-    *stop = true;
-  }
-  return NO_ERROR;
-}
-
-```
-
-</details>
+  </details>
 
 </details>
 
 <details>
-<summary> assert, update hint and exit </summary>
+<summary> 4. assert, update hint and exit </summary>
 
 ```c
 
