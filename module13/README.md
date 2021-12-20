@@ -92,9 +92,9 @@ disk_reserve_sectors ()
 │
 ├── disk_reserve_from_cache ()
 │   ├── disk_reserve_from_cache_vols ()
-│	│	└── disk_reserve_from_cache_volume ()
-│	│
-│	└── disk_extend ()
+│   │	└── disk_reserve_from_cache_volume ()
+│   │
+│   └── disk_extend ()
 │		├── disk_volume_expand ()
 │		├── disk_reserve_from_cache_volume ()
 │		├── disk_add_volume ()
