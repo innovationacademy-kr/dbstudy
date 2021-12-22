@@ -42,34 +42,34 @@
 
 ```c
 /*
- * dwb_flush_block()				: 지정된 block에서 page들을 flush
+ * dwb_flush_block()			: 지정된 block에서 page들을 flush
  *
- * return 							: Error code
- * thread_p(in)						: Thread entry
- * block(in)						: flush가 필요한 block
+ * return			: Error code
+ * thread_p(in)			: Thread entry
+ * block(in)			: flush가 필요한 block
  * file_sync_helper_can_flush(in)	: file sync helper thread가 flush 가능하면, true
  * current_position_with_flags(out)	: 최신화된 position with flags
  *
- *  Note							: 해당 block page들은 flush 중에 다른 사람에 의해 수정될 수 없음
+ *  Note			: 해당 block page들은 flush 중에 다른 사람에 의해 수정될 수 없음
  */
 STATIC_INLINE int
 dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_can_flush, UINT64 *current_position_with_flags)
 {
 	UINT64 local_current_position_with_flags, new_position_with_flags;	// reset_bit_position 문에서 쓰이는 변수
-	int error_code = NO_ERROR;					// #define NO_ERROR 0
-	DWB_SLOT *p_dwb_ordered_slots = NULL;		// 정렬된 slot들을 담을 구조체 변수
-	unsigned int i, ordered_slots_length;		// index, 정렬된 slot들의 길이
-	PERF_UTIME_TRACKER time_track;				// 시간 기록용 구조체 변수
-	int num_pages;								// page 수
+	int error_code = NO_ERROR;			// #define NO_ERROR 0
+	DWB_SLOT *p_dwb_ordered_slots = NULL;			// 정렬된 slot들을 담을 구조체 변수
+	unsigned int i, ordered_slots_length;			// index, 정렬된 slot들의 길이
+	PERF_UTIME_TRACKER time_track;			// 시간 기록용 구조체 변수
+	int num_pages;			// page 수
 	unsigned int current_block_to_flush, next_block_to_flush;			// 현재 flush되는 block, 그 다음 flush되는 block
-	int max_pages_to_sync;						// sync될 수 있는 최대 page 수
-#if defined(SERVER_MODE)						// SERVER MODE로 실행됐을 경우
-	bool flush = false;							// flush 유무
-	PERF_UTIME_TRACKER time_track_file_sync_helper;						// 시간 기록용 구조체 변수
+	int max_pages_to_sync;			// sync될 수 있는 최대 page 수
+#if defined(SERVER_MODE)			// SERVER MODE로 실행됐을 경우
+	bool flush = false;			// flush 유무
+	PERF_UTIME_TRACKER time_track_file_sync_helper;			// 시간 기록용 구조체 변수
 #endif
-#if !defined(NDEBUG)							// DEBUG MODE로 실행됐을 경우
-	DWB_BLOCK *saved_file_sync_helper_block = NULL;						// helper thread에 의해 동기화될 block이 저장될 DWB_BLOCK 포인터
-	LOG_LSA nxio_lsa;							// log 주소 식별자
+#if !defined(NDEBUG)			// DEBUG MODE로 실행됐을 경우
+	DWB_BLOCK *saved_file_sync_helper_block = NULL;			// helper thread에 의해 동기화될 block이 저장될 DWB_BLOCK 포인터
+	LOG_LSA nxio_lsa;			// log 주소 식별자
 #endif
 
 	assert(block != NULL && block->count_wb_pages > 0 && dwb_is_created());
@@ -284,7 +284,7 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 		if (!ATOMIC_CAS_32(&block->flush_volumes_info[i].flushed_status, VOLUME_NOT_FLUSHED,
 						   VOLUME_FLUSHED_BY_DWB_FLUSH_THREAD))
 		// flush할 때 각 볼륨에 flush, 그 다음 동기화
-		// CAS하는 이유는 flush한 볼륨만 동기화를 해주면 되니까
+		// CAS하는 이유는 flush한 볼륨만 동기화를 해주면 되기 때문
 		// compare and swap은 첫번째, 두번째 인자가 같으면 세번째 인자를 첫번째 포인터에 대입하고 true 반환, 다르면 false 반환
 		// (enum <unnamed>)VOLUME_NOT_FLUSHED = 0
 		// (enum <unnamed>)VOLUME_FLUSHED_BY_DWB_FLUSH_THREAD = 2
