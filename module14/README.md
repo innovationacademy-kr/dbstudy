@@ -5,7 +5,7 @@
 ### **Flush 과정**
 
 * 하나의 Block의 slot이 page로 가득 찼을 때 해당 Block의 Flush를 시작한다.
-* 그렇게 되면 DWB에서 DWB volume으로 그 다음에는 DWB에서 DB(Disk)로 Flush 하는 과정을 거친다.
+* 그렇게 되면 DWB에서 DWB volume으로 그 다음에는 DWB에서 DB로 Flush 하는 과정을 거친다.
 * `dwb_add_page()`함수에서 Block의 slot이 page로 가득찼다고 판별이 되면, `dwb_flush_block()` 함수를 실행해서 DWB flush를 실행한다.
 * Flush는 flush daemon을 통하여 Flush하거나 수동으로 직접 `dwb_flush_block()`을 호출하여서 진행할 수 있다.
 * Flush가 끝나면 Block의 상태 및 다음 순서의 Flush Block을 수정한다.
@@ -22,7 +22,7 @@
 * Block의 지역변수 `write_buffer`를 사용하여 slot의 순서대로 DWB volume에 write
 * Block 전체의 write 작업이 끝나면, `fsync()`를 호출하여 DWB volume에 Flush 마무리
 
-### **Disk로 Flush**
+### **DB로 Flush**
 
 * Block 내부의 slot들을 정렬 후, DB에 해당하는 page마다 `write()` 함수를 호출하여 write 진행
 	* slot 정렬은 다음과 같은 이유의 장점 때문에 진행함 :
@@ -76,17 +76,19 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 	// flush될 block이 NULL이거나 write buffer page 수가 0이하이거나 dwb가 생성되지 않았으면 crash
 
 	PERF_UTIME_TRACKER_START(thread_p, &time_track);
-	// 정렬 시간 기록 시작
+	// 시간 기록 시작
 
 	/* 하나의 block만 flush 허용 */
 	ATOMIC_INC_32(&dwb_Global.blocks_flush_counter, 1);
-	// flush counter 1증가
+	// &dwb_Global.blocks_flush_counter++;
 	assert(dwb_Global.blocks_flush_counter <= 1);
 	// flush counter가 1보다 크면 crash (한번에 하나의 블록만 flush 가능하므로 1보다 크면 crash)
 
 	/* 빠른 flush를 위해 slot들을 VPID순으로 정렬 */
 	error_code = dwb_block_create_ordered_slots(block, &p_dwb_ordered_slots, &ordered_slots_length);
-	// 퀵정렬로 block내 slot들을 정렬
+	// slot ordering 함수 block의 slot수 + 1 만큼 메모리 할당하고 memcpy 마지막 슬롯은 빈 slot 으로 초기화
+	// qsort 로 오래된 것 부터 순서대로 정렬 p_dwb_ordered_slots에 정렬한 slot 배열을 받는다. slots_length = count_wb_pages + 1;
+	// 정렬 기준 순서 vol 식별자, page, log page, log offset 순
 	if (error_code != NO_ERROR)
 	{
 		error_code = ER_FAILED;		// #define ER_FAILED -1
@@ -144,7 +146,7 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 	// file sync helper 시간 기록 시작
 
 	while (dwb_Global.file_sync_helper_block != NULL)
-	// DWB_BLOCK *volatile file_sync_helper_block; /* The block that will be sync by helper thread. */
+	// 선언 : DWB_BLOCK *volatile file_sync_helper_block; /* The block that will be sync by helper thread. */
 	{
 		flush = true;
 
@@ -177,13 +179,13 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 				}
 			}
 			(void)ATOMIC_TAS_ADDR(&dwb_Global.file_sync_helper_block, (DWB_BLOCK *)NULL);
-			// test and set address		file_sync_helper_block을 NULL로 초기화?
+			// &dwb_Global.file_sync_helper_block = (DWB_BLOCK *)NULL;
 		}
 	}
 
 #if !defined(NDEBUG)			// DEBUG MODE로 실행됐을 경우
 	if (saved_file_sync_helper_block)
-	// 위에서 (DWB_BLOCK *)dwb_Global.file_sync_helper_block 대입한 바 있음
+	// 위에서 (DWB_BLOCK *)dwb_Global.file_sync_helper_block을 대입한 바 있음
 	{
 		for (i = 0; i < saved_file_sync_helper_block->count_flush_volumes_info; i++)
 		{
@@ -201,13 +203,14 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 #endif /* SERVER_MODE */
 
 	ATOMIC_TAS_32(&block->count_flush_volumes_info, 0);
-	// test and set		count_flush_volumes_info를 0으로 초기화?
+	// count_flush_volumes_info = 0;
 	block->all_pages_written = false;
 
-	/* 먼저 double write file buffer를 write, flush */
+	/* 먼저 DWB volume에 write, flush */
 	if (fileio_write_pages(thread_p, dwb_Global.vdes, block->write_buffer, 0, block->count_wb_pages,
 						   IO_PAGESIZE, FILEIO_WRITE_NO_COMPENSATE_WRITE) == NULL)
-	// 연속된 여러 page의 내용을 disk에 기록
+	// offset = 0, nbytes_to_be_written = IO_PAGESIZE * count_wb_pages nbytes_to_be_written 만큼 write() 시도
+	// write 된 만큼 offset, *io_pages_p + 하고 nbytes_to_be_written - 하고 0이 될때까지 반복
 	{
 		// 함수가 NULL을 반환했을 시 오류 감지
 		assert(false);
@@ -230,7 +233,7 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 	dwb_log("dwb_flush_block: DWB synchronized\n");
 	// 동기화 했다는 로그 남김
 
-	/* 이제 원래 위치(orginal location)를 write, flush */
+	/* 이제 정렬된 slot들을 DB에다가 write, flush */
 	error_code =
 		dwb_write_block(thread_p, block, p_dwb_ordered_slots, ordered_slots_length, file_sync_helper_can_flush, true);
 	// 지정된 순서로 block page들을 write
@@ -280,7 +283,9 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 
 		if (!ATOMIC_CAS_32(&block->flush_volumes_info[i].flushed_status, VOLUME_NOT_FLUSHED,
 						   VOLUME_FLUSHED_BY_DWB_FLUSH_THREAD))
-		// compare and swap
+		// flush할 때 각 볼륨에 flush, 그 다음 동기화
+		// CAS하는 이유는 flush한 볼륨만 동기화를 해주면 되니까
+		// compare and swap은 첫번째, 두번째 인자가 같으면 세번째 인자를 첫번째 포인터에 대입하고 true 반환, 다르면 false 반환
 		// (enum <unnamed>)VOLUME_NOT_FLUSHED = 0
 		// (enum <unnamed>)VOLUME_FLUSHED_BY_DWB_FLUSH_THREAD = 2
 		{
@@ -289,7 +294,7 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 		}
 
 		num_pages = ATOMIC_TAS_32(&block->flush_volumes_info[i].num_pages, 0);
-		// test and set		flush_volumes_info[i].num_pages에 0 대입하고 그 값을 num_pages에 대입?
+		// flush_volumes_info[i].num_pages에 0 대입하고 그 값을 num_pages에 대입
 		assert(num_pages != 0);
 		// num_pages가 0이면 crash
 
@@ -302,20 +307,20 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 
 	/* file sync helper thread가 완료되도록 허용 */
 	block->all_pages_written = true;
-
+	
+	/* 이 부분은 그냥 통계를 위한 tracking 용도 */
 	if (perfmon_is_perf_tracking_and_active(PERFMON_ACTIVATION_FLAG_FLUSHED_BLOCK_VOLUMES))
 	// active thread가 있고 expanded statistic의 activation_flag가 active된 경우 true 반환
 	// (enum <unnamed>)PERFMON_ACTIVATION_FLAG_FLUSHED_BLOCK_VOLUMES = 128
 	{
 		perfmon_db_flushed_block_volumes(thread_p, block->count_flush_volumes_info);
-		// ??
 	}
 
 	/* block이 가득 찼거나 DWB에 접근하는 thread가 하나만 있음 */
 	assert(block->count_wb_pages == DWB_BLOCK_NUM_PAGES || DWB_IS_MODIFYING_STRUCTURE(ATOMIC_INC_64(&dwb_Global.position_with_flags, 0LL)));
 
 	ATOMIC_TAS_32(&block->count_wb_pages, 0);
-	// &block->count_wb_pages = 0?
+	// &block->count_wb_pages = 0
 	ATOMIC_INC_64(&block->version, 1ULL);
 	// &block->version++;
 
@@ -332,7 +337,7 @@ reset_bit_position:
 	*/
 
 	if (!ATOMIC_CAS_64(&dwb_Global.position_with_flags, local_current_position_with_flags, new_position_with_flags))
-	// compare and swap 결과가 0이면
+	// compare결과 다르면
 	{
 		/* 다른 사용자가 위치를 변경했으니 다시 시도. */
 		goto reset_bit_position;
@@ -346,7 +351,7 @@ reset_bit_position:
 	if (!ATOMIC_CAS_32(&dwb_Global.next_block_to_flush, current_block_to_flush, next_block_to_flush))
 	// compare and swap 결과가 0이면
 	{
-		/* 해당 thread는 다음 block을 flush할 수 있는 유일한 thread임 */
+		/* 지금 진행하고 있는 thread가 flush할 다음 블록을 지정할 수 있는 유일한 thread */
 		assert_release(false);
 	}
 
