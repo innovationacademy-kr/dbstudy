@@ -44,13 +44,13 @@
 /*
  * dwb_flush_block()			: 지정된 block에서 page들을 flush
  *
- * return			: Error code
- * thread_p(in)			: Thread entry
- * block(in)			: flush가 필요한 block
+ * return				: Error code
+ * thread_p(in)				: Thread entry
+ * block(in)				: flush가 필요한 block
  * file_sync_helper_can_flush(in)	: file sync helper thread가 flush 가능하면, true
  * current_position_with_flags(out)	: 최신화된 position with flags
  *
- *  Note			: 해당 block page들은 flush 중에 다른 사람에 의해 수정될 수 없음
+ *  Note					: 해당 block page들은 flush 중에 다른 사람에 의해 수정될 수 없음
  */
 STATIC_INLINE int
 dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_can_flush, UINT64 *current_position_with_flags)
@@ -61,13 +61,13 @@ dwb_flush_block(THREAD_ENTRY *thread_p, DWB_BLOCK *block, bool file_sync_helper_
 	unsigned int i, ordered_slots_length;			// index, 정렬된 slot들의 길이
 	PERF_UTIME_TRACKER time_track;			// 시간 기록용 구조체 변수
 	int num_pages;			// page 수
-	unsigned int current_block_to_flush, next_block_to_flush;			// 현재 flush되는 block, 그 다음 flush되는 block
+	unsigned int current_block_to_flush, next_block_to_flush;		// 현재 flush되는 block, 그 다음 flush되는 block
 	int max_pages_to_sync;			// sync될 수 있는 최대 page 수
 #if defined(SERVER_MODE)			// SERVER MODE로 실행됐을 경우
 	bool flush = false;			// flush 유무
 	PERF_UTIME_TRACKER time_track_file_sync_helper;			// 시간 기록용 구조체 변수
 #endif
-#if !defined(NDEBUG)			// DEBUG MODE로 실행됐을 경우
+#if !defined(NDEBUG)					// DEBUG MODE로 실행됐을 경우
 	DWB_BLOCK *saved_file_sync_helper_block = NULL;			// helper thread에 의해 동기화될 block이 저장될 DWB_BLOCK 포인터
 	LOG_LSA nxio_lsa;			// log 주소 식별자
 #endif
@@ -373,9 +373,9 @@ end:
 		free_and_init(p_dwb_ordered_slots);
 		/*
 		*	#define free_and_init(ptr) \
-        *			do { \
-        *				free ((void*) (ptr)); \
-        *				(ptr) = NULL; \
+		*			do { \
+		*				free ((void*) (ptr)); \
+		*				(ptr) = NULL; \
 		*			} while (0)
 		*/
 	}
