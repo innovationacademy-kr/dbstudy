@@ -213,19 +213,132 @@ condition_variable에 .wait_for .wait_until를 통해 무조건 lock이 걸린 �
 <br/>
 <br/>
 
-### Looper
-
-
+### Looper & Waiter
+	
 ```cpp
   void daemon::pause (void)
   {
     m_looper.put_to_sleep (m_waiter);
   }
 ```
+	
+Daemon의 pause는 위와 같습니다. looper의 put_to_sleep 함수를 호출하고 이때 waiter를 넘겨줍니다.
+	
+```cpp
+void
+  looper::put_to_sleep (waiter &waiter_arg)
+  {
+    if (is_stopped ())
+      {
+	return;
+      }
 
+    assert (m_setup_period);
+
+    cubperf::reset_timept (m_stats.m_timept);
+
+    bool is_timed_wait = true;
+    delta_time period = delta_time (0);
+
+    m_setup_period (is_timed_wait, period);
+
+    if (is_timed_wait)
+      {
+	delta_time wait_time = delta_time (0);
+	delta_time execution_time = delta_time (0);
+
+	if (m_start_execution_time != std::chrono::system_clock::time_point ())
+	  {
+	    execution_time = std::chrono::system_clock::now () - m_start_execution_time;
+	  }
+
+	if (period > execution_time)
+	  {
+	    wait_time = period - execution_time;
+	  }
+
+	m_was_woken_up = waiter_arg.wait_for (wait_time);
+	
+      }
+    else
+      {
+	waiter_arg.wait_inf ();
+	m_was_woken_up = true;
+      }
+
+    m_start_execution_time = std::chrono::system_clock::now ();
+    Looper_statistics.time_and_increment (m_stats, STAT_LOOPER_SLEEP_COUNT_AND_TIME);
+  }
+```
+
+```cpp
+  void
+  waiter::wait_inf (void)
+  {
+    std::unique_lock<std::mutex> lock (m_mutex);
+    goto_sleep ();
+> 상태를 SLEEPING으로 설정
+	
+    m_condvar.wait (lock, [this] { return m_status == AWAKENING; });
+> condition variable에 wait 로 lock된 뮤텍스를 넘겨주어 무조건 대기 상태로 들어간다.
+> wakeup 호출을 통한 AWAKENING 상태 변화가 일어났을 경우 스레드의 대기를 종료한다.
+	
+    run ();
+  }
+
+  bool
+  waiter::wait_for (const std::chrono::system_clock::duration &delta)
+  {
+    if (delta == std::chrono::microseconds (0))
+      {
+	Waiter_statistics.increment (m_stats, STAT_NO_SLEEP_COUNT);
+	return true;
+      }
+
+    bool ret;
+
+    std::unique_lock<std::mutex> lock (m_mutex);
+    goto_sleep ();
+> 상태를 SLEEPING으로 설정
+
+    ret = m_condvar.wait_for (lock, delta, [this] { return m_status == AWAKENING; });
+> condition variable에 wait_for 로 lock된 뮤텍스를 넘겨주어 무조건 대기 상태로 들어간다.
+> 이때 timeout 또는 wakeup 호출을 통한 AWAKENING 상태 변화가 일어났을 경우 스레드의 대기를 종료한다.
+    if (!ret)
+      {
+	Waiter_statistics.increment (m_stats, STAT_TIMEOUT_COUNT);
+      }
+
+    run ();
+
+    return ret;
+  }
+	
+  bool
+  waiter::wait_until (const std::chrono::system_clock::time_point &timeout_time)
+  {
+    std::unique_lock<std::mutex> lock (m_mutex);
+    goto_sleep ();
+> 상태를 SLEEPING으로 설정
+	
+    bool ret = m_condvar.wait_until (lock, timeout_time, [this] { return m_status == AWAKENING; });
+> condition variable에 wait_until 로 lock된 뮤텍스를 넘겨주어 무조건 대기 상태로 들어간다.
+> 이때 지정된 시간까지의 대기 또는 wakeup 호출을 통한 AWAKENING 상태 변화가 일어났을 경우 스레드의 대기를 종료한다.
+	
+    if (!ret)
+      {
+	Waiter_statistics.increment (m_stats, STAT_TIMEOUT_COUNT);
+      }
+
+    run ();
+
+    return ret;
+  }
+```
+	
+<br/>
 <br/>
 
 지금까지의 내용을 아래와 같이 그릴 수 있습니다.
 
-![6](https://user-images.githubusercontent.com/12230655/147212696-286d0026-f0a0-4d87-8875-9e873c98f1f9.png)
-
+![6](https://user-images.githubusercontent.com/12230655/147214782-99e50b75-911e-46b3-8e1b-9e15a5004370.png)
