@@ -40,13 +40,45 @@ dwb_daemons_init ()
 
 ### Cubrid 에서의 Thread
 
-Daemon 등을 이해하기 위해서는 Cubrid의 스레드 구조에 대해 이해가 필요해 보입니다.
+Daemon 등을 이해하기 위해서는 Cubrid의 스레드 작업 구조에 대해 이해가 필요해 보입니다.
 
 <br/>
 
 ![2](https://user-images.githubusercontent.com/12230655/147192226-d25b50a0-fe7a-44c1-a0e6-2224a6a58a19.png)
 
 우선 Cubrid 의 스레드는 아래와 같은 cubthread 라는 네임스페이스 안에서 처리됩니다
+
+<br/>
+
+또한 스레드에서 진행되는 작업들은 최소 단위로 task를 사용합니다.
+
+```cpp
+  using entry_task = task<entry>;
+  
+  template <typename Context>
+  class task
+  {
+    public:
+      using context_type = Context;
+
+      task (void) = default;
+
+      // abstract class requires virtual destructor
+      virtual ~task (void) = default;
+
+      // virtual functions to be implemented by inheritors
+      virtual void execute (context_type &) = 0;
+
+      // implementation of task's retire function.
+      virtual void retire (void)
+      {
+	delete this;
+      }
+  };
+```
+
+일반적으로 `class callable_task : public task<Context>`를 사용하고, 커스텀 task를 만드는 경우에는 task로부터 상속받은 클래스를 만들어 사용합니다.
+
 
 <br/>
 
@@ -149,4 +181,8 @@ condition_variable에 .wait_for .wait_until를 통해 무조건 lock이 걸린 �
 > context 제거
   }
 ```
+
+<br/>
+
+지금까지의 내용을 아래와 같이 그릴 수 있습니다.
 
