@@ -534,7 +534,11 @@ start:
 <br/>
 
 ### dwb_flush_block_daemon_init
-	
+
+flush 되어 dwb_Global.file_sync_helper_block에 예약된 블록을 disk와 동기화해줍니다.
+
+해당 daemon이 호출되어 flush 된 블록이 disk와 동기화 되기 전에 flush가 호출되게 되면 daemon이 사용가능한 경우 대기하거나 flush 된 이전 블록에 대해서 내부적으로 동기화를 진행하고 현재 블록에 대해 flush를 진행합니다
+
 ```cpp
 void
 dwb_file_sync_helper_daemon_init ()
@@ -602,5 +606,34 @@ dwb_file_sync_helper_execute (cubthread::entry &thread_ref)
       dwb_file_sync_helper (&thread_ref);
 > dwb_file_sync_helper 함수를 호출
     }
+}
+```
+
+```cpp
+static int
+dwb_file_sync_helper (THREAD_ENTRY * thread_p)
+{
+  position_with_flags = ATOMIC_INC_64 (&dwb_Global.position_with_flags, 0ULL);
+  if (!DWB_IS_CREATED (position_with_flags) || DWB_IS_MODIFYING_STRUCTURE (position_with_flags))
+    {
+      return NO_ERROR;
+    }
+> dwb가 없거나 만들어지는 중이라면 대기
+
+  block = (DWB_BLOCK *) dwb_Global.file_sync_helper_block;
+  if (block == NULL)
+    {
+      return NO_ERROR;
+    }
+> 변수 dwb_Global.file_sync_helper_block 가 비어있다면
+
+	..........
+> fsync를 사용하여 버퍼와 disk를 동기화
+	
+	
+  (void) ATOMIC_TAS_ADDR (&dwb_Global.file_sync_helper_block, (DWB_BLOCK *) NULL);
+> dwb_Global.file_sync_helper_block를 NULL로 비움
+	
+  return NO_ERROR;
 }
 ```
