@@ -56,4 +56,7 @@ core(worker sub-group)을 관리하는 worker_pool과 daemon은 cubthread 내에
 
 manager 인스턴스는 `void initialize (entry *&my_entry)` 에서 초기화되고 static으로 선언된 Manager 포인터가 받게 됩니다.
 
+<br/>
+
+![4](https://user-images.githubusercontent.com/12230655/147193697-10f4dff1-ad91-4d69-99ae-0274368ba524.png)
 
