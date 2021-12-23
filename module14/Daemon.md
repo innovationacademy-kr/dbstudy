@@ -197,3 +197,5 @@ condition_variable에 .wait_for .wait_until를 통해 무조건 lock이 걸린 �
 
 지금까지의 내용을 아래와 같이 그릴 수 있습니다.
 
+![6](https://user-images.githubusercontent.com/12230655/147212696-286d0026-f0a0-4d87-8875-9e873c98f1f9.png)
+
