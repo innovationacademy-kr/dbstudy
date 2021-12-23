@@ -352,25 +352,7 @@ void
 <br/>
 
 
-### dwb_daemons_init
-
-```cpp
-void
-dwb_file_sync_helper_daemon_init ()
-{
-  cubthread::looper looper = cubthread::looper (std::chrono::milliseconds (10));
-> 고정된 인터벌을 가지는 looper 생성
-
-  cubthread::entry_callable_task *daemon_task = new cubthread::entry_callable_task (dwb_file_sync_helper_execute);
-> callable_task에 실제로 execute 될 함수 dwb_file_sync_helper_execute를 넘겨주면서 task 객체를 생성
-	
-  dwb_file_sync_helper_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
-> looper와 task를 넘겨주며 daemon 생성
-}
-```
-
-하나의 생성 과정을 위주로 잡고 설명하겠습니다.
-
+### create_daemon
 	
 ```cpp
   template<typename Res, typename ... CtArgs>
