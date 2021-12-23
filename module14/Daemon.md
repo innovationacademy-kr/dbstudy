@@ -507,7 +507,7 @@ start:
 > (이전 블록 flush 횟수) == (flush 블록 flush 횟수) && (이전 블록 번호) < (flush 블록 번호)
 > 일 때 이전 블록이 모두 flush 되지 않은 경우에 crash를 일으키는 것으로 보아
 > 이전 블록의 flush에서 (일부) flush를 하지 못한 경우에 처리해주는 것으로 추측됨
-																																
+
       error_code = dwb_flush_block (thread_p, flush_block, true, NULL);
 > flush
 
