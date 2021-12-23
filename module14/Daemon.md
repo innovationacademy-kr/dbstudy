@@ -406,3 +406,125 @@ void
 #endif // not SERVER_MODE = SA_MODE
   }
 ```
+	
+<br/>
+<br/>
+
+### dwb_flush_block_daemon_init
+
+```cpp
+void
+dwb_flush_block_daemon_init ()
+{
+  cubthread::looper looper = cubthread::looper (std::chrono::milliseconds (1));
+  dwb_flush_block_daemon_task *daemon_task = new dwb_flush_block_daemon_task ();
+
+  dwb_flush_block_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
+}
+```
+	
+위는 dwb_flush_block_daemon 의 초기화 지점입니다.
+
+```cpp
+namespace cubthread {
+  using entry_task = task<entry>;
+}
+
+class dwb_flush_block_daemon_task: public cubthread::entry_task
+{
+  private:
+    PERF_UTIME_TRACKER m_perf_track;
+
+  public:
+    dwb_flush_block_daemon_task ()
+    {
+      PERF_UTIME_TRACKER_START (NULL, &m_perf_track);
+    }
+
+    void execute (cubthread::entry &thread_ref) override
+    {
+      if (!BO_IS_SERVER_RESTARTED ())
+        {
+	  return;
+        }
+> 서버 boot가 끝날 때까지 대기
+
+      PERF_UTIME_TRACKER_TIME (NULL, &m_perf_track, PSTAT_DWB_FLUSH_BLOCK_COND_WAIT);
+
+      if (prm_get_bool_value (PRM_ID_ENABLE_DWB_FLUSH_THREAD) == true)
+> 시스템 내 PRM_ID_ENABLE_DWB_FLUSH_THREAD 번째 파라미터 값을 bool로 확인
+        {
+	  if (dwb_flush_next_block (&thread_ref) != NO_ERROR)
+	    {
+	      assert_release (false);
+	    }
+	> dwb_flush_next_block함수를 호출
+        }
+
+      PERF_UTIME_TRACKER_START (&thread_ref, &m_perf_track);
+    }
+};
+
+	
+static int
+dwb_flush_next_block (THREAD_ENTRY * thread_p)
+{
+  unsigned int block_no;
+  DWB_BLOCK *flush_block = NULL;
+  int error_code = NO_ERROR;
+  UINT64 position_with_flags;
+
+start:
+  position_with_flags = ATOMIC_INC_64 (&dwb_Global.position_with_flags, 0ULL);
+  if (!DWB_IS_CREATED (position_with_flags) || DWB_IS_MODIFYING_STRUCTURE (position_with_flags))
+    {
+      return NO_ERROR;
+    }
+> 플래그를 체크해서 dwb가 만들어지지 않았거나, 만드는 도중이라면 종료
+
+  dwb_get_next_block_for_flush (thread_p, &block_no);
+> dwb_Global.next_block_to_flush 번째 블록이 꽉 찼으면 block_no = dwb_Global.next_block_to_flush
+> 블록이 아직 꽉 차지 않아서 flush 할 수 없다면, block_no = DWB_NUM_TOTAL_BLOCKS
+	
+  if (block_no < DWB_NUM_TOTAL_BLOCKS)
+    {
+> 블록이 flush 가능하다면
+      flush_block = &dwb_Global.blocks[block_no];
+
+      assert (flush_block != NULL && flush_block->count_wb_pages == DWB_BLOCK_NUM_PAGES);
+
+      if (DWB_GET_PREV_BLOCK (flush_block->block_no)->version < flush_block->version
+	  || ((DWB_GET_PREV_BLOCK (flush_block->block_no)->version == flush_block->version)
+	      && (flush_block->block_no > DWB_GET_PREV_BLOCK_NO (flush_block->block_no))))
+	{
+	  if (DWB_GET_PREV_BLOCK (flush_block->block_no)->count_wb_pages != 0)
+	    {
+	      assert_release (false);
+	    }
+	}
+> 정확하게는 모르겠는데 아마 블록의 version은 블록이 flush 된 횟수로 보임
+> (이전 블록 flush 횟수) < (flush 블록 flush 횟수) 또는
+> (이전 블록 flush 횟수) == (flush 블록 flush 횟수) && (이전 블록 번호) < (flush 블록 번호)
+> 일 때 이전 블록이 모두 flush 되지 않은 경우에 crash를 일으키는 것으로 보아
+> 이전 블록의 flush에서 (일부) flush를 하지 못한 경우에 처리해주는 것으로 추측됨
+																																
+      error_code = dwb_flush_block (thread_p, flush_block, true, NULL);
+> flush
+
+      if (error_code != NO_ERROR)
+	{
+	  dwb_log_error ("Can't flush block = %d having version %lld\n", flush_block->block_no, flush_block->version);
+
+	  return error_code;
+	}
+
+      dwb_log ("Successfully flushed DWB block = %d having version %lld\n",
+	       flush_block->block_no, flush_block->version);
+
+	> 다시 처음부터 진행해서 flush 가능한 블록이 있는 지 확인
+      goto start;
+    }
+
+  return NO_ERROR;
+}
+```
