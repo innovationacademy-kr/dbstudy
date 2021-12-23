@@ -84,6 +84,22 @@ Daemon 등을 이해하기 위해서는 Cubrid의 스레드 작업 구조에 대
 
 일반적으로 `class callable_task : public task<Context>`를 사용하고, 커스텀 task를 만드는 경우에는 task로부터 상속받은 클래스를 만들어 사용합니다.
 
+```cpp
+using entry_callable_task = callable_task<entry>;
+
+void
+dwb_file_sync_helper_daemon_init ()
+{
+  cubthread::looper looper = cubthread::looper (std::chrono::milliseconds (10));
+  cubthread::entry_callable_task *daemon_task = new cubthread::entry_callable_task (dwb_file_sync_helper_execute);
+
+  dwb_file_sync_helper_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
+}
+```
+dwb_file_sync_helper_daemon_init을 예시로 설명하면, looper를 통해 간격(milliseconds 10)을 지정하고 entry_callable_task(callable_task<entry>)에
+dwb_file_sync_helper_execute 함수를 넘겨주어 daemon_task를 생성합니다.
+
+이후 daemon_task->execute() 를 호출하여 처리해야할 작업인 dwb_file_sync_helper_execute(entry)를 호출할 수 있습니다.
 
 <br/>
 <br/>
@@ -184,12 +200,21 @@ condition_variable에 .wait_for .wait_until를 통해 무조건 lock이 걸린 �
 
 	daemon_arg->pause ();
 > daemon->pause 를 호출하여 스레드를 휴식 (looper->waiter 방향으로 정지)
+
 	daemon_arg->register_stat_pause ();
       }
 
     context_manager_arg->retire_context (context);
     exec_arg->retire ();
 > context 제거
+  }
+```
+
+task의 e
+```cpp
+  void daemon::pause (void)
+  {
+    m_looper.put_to_sleep (m_waiter);
   }
 ```
 
