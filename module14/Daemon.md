@@ -49,8 +49,10 @@ Daemon 등을 이해하기 위해서는 Cubrid의 스레드 작업 구조에 대
 우선 Cubrid 의 스레드는 아래와 같은 cubthread 라는 네임스페이스 안에서 처리됩니다
 
 <br/>
+<br/>
 
-또한 스레드에서 진행되는 작업들은 최소 단위로 task를 사용합니다.
+![2-1](https://user-images.githubusercontent.com/12230655/147211556-b17214a0-d9f8-497b-8626-3314ccd3fbda.png)
+▲ task
 
 ```cpp
   using entry_task = task<entry>;
@@ -76,10 +78,14 @@ Daemon 등을 이해하기 위해서는 Cubrid의 스레드 작업 구조에 대
       }
   };
 ```
+▲ task 인터페이스
+
+또한 스레드에서 진행되는 작업들은 최소 단위로 task를 사용합니다.
 
 일반적으로 `class callable_task : public task<Context>`를 사용하고, 커스텀 task를 만드는 경우에는 task로부터 상속받은 클래스를 만들어 사용합니다.
 
 
+<br/>
 <br/>
 
 ![3](https://user-images.githubusercontent.com/12230655/147192636-11c04418-a570-44c6-9f29-e264ff921aba.png)
