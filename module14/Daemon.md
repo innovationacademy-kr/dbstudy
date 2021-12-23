@@ -51,6 +51,8 @@ Daemon 등을 이해하기 위해서는 Cubrid의 스레드 작업 구조에 대
 <br/>
 <br/>
 
+### Task
+
 ![2-1](https://user-images.githubusercontent.com/12230655/147211556-b17214a0-d9f8-497b-8626-3314ccd3fbda.png)
 ▲ task
 
@@ -85,6 +87,8 @@ Daemon 등을 이해하기 위해서는 Cubrid의 스레드 작업 구조에 대
 <br/>
 <br/>
 
+### Manager
+
 ![3](https://user-images.githubusercontent.com/12230655/147192636-11c04418-a570-44c6-9f29-e264ff921aba.png)
 
 core(worker sub-group)을 관리하는 worker_pool과 daemon은 cubthread 내에 있는 manager 클래스에서 관리됩니다.
@@ -105,6 +109,9 @@ manager 인스턴스는 `void initialize (entry *&my_entry)` 에서 초기화되
 함수 `push_task` `push_task_on_core` 는 manager 내에서 각 workerpool로 작업을 넘겨줄 때 호출됩니다. 
 
 <br/>
+<br/>
+
+### Daemon
 
 ![5](https://user-images.githubusercontent.com/12230655/147200131-003f9267-597f-4aed-ba8c-a7f406325777.png)
 
