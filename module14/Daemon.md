@@ -452,7 +452,7 @@ class dwb_flush_block_daemon_task: public cubthread::entry_task
       PERF_UTIME_TRACKER_TIME (NULL, &m_perf_track, PSTAT_DWB_FLUSH_BLOCK_COND_WAIT);
 
       if (prm_get_bool_value (PRM_ID_ENABLE_DWB_FLUSH_THREAD) == true)
-> 시스템 내 PRM_ID_ENABLE_DWB_FLUSH_THREAD 번째 파라미터 값을 bool로 확인
+> cubrid 시스템 내 PRM_ID_ENABLE_DWB_FLUSH_THREAD 번째 파라미터 값을 bool로 확인
         {
 	  if (dwb_flush_next_block (&thread_ref) != NO_ERROR)
 	    {
@@ -526,5 +526,81 @@ start:
     }
 
   return NO_ERROR;
+}
+```
+	
+	
+<br/>
+<br/>
+
+### dwb_flush_block_daemon_init
+	
+```cpp
+void
+dwb_file_sync_helper_daemon_init ()
+{
+  cubthread::looper looper = cubthread::looper (std::chrono::milliseconds (10));
+  cubthread::entry_callable_task *daemon_task = new cubthread::entry_callable_task (dwb_file_sync_helper_execute);
+
+  dwb_file_sync_helper_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
+}
+```
+
+```cpp
+	using entry_callable_task = callable_task<entry>;
+	
+  template <typename Context>
+  class callable_task : public task<Context>
+  {
+    public:
+      using exec_func_type = std::function<void (Context &)>;
+
+      callable_task () = delete;
+
+      template <typename F>
+      callable_task (const F &f, bool delete_on_retire = true);
+      template <typename F>
+      callable_task (F &&f, bool delete_on_retire = true);
+
+      template <typename FuncExec, typename FuncRetire>
+      callable_task (const FuncExec &fe, const FuncRetire &fr);
+      template <typename FuncExec, typename FuncRetire>
+      callable_task (FuncExec &&fe, FuncRetire &&fr);
+
+      void execute (Context &ctx) final
+      {
+	m_exec_f (ctx);
+      }
+
+      void retire () final
+      {
+	m_retire_f ();
+      }
+
+    private:
+      std::function<void (Context &)> m_exec_f;
+      std::function<void (void)> m_retire_f;
+  };
+```
+	
+callable_task는 생성자에서 인자로 함수를 받아 저장하고 이를 execute에서 호출합니다.
+	
+이 경우에는 `m_exec_f (ctx);`로 함수 `dwb_file_sync_helper_execute` 를 호출하게 됩니다.
+	
+```cpp
+dwb_file_sync_helper_execute (cubthread::entry &thread_ref)
+{
+  if (!BO_IS_SERVER_RESTARTED ())
+    {
+      return;
+	> 서버 boot가 끝날 때까지 대기
+    }
+
+  if (prm_get_bool_value (PRM_ID_ENABLE_DWB_FLUSH_THREAD) == true)
+> cubrid 시스템 내 PRM_ID_ENABLE_DWB_FLUSH_THREAD 번째 파라미터 값을 bool로 확인
+    {
+      dwb_file_sync_helper (&thread_ref);
+> dwb_file_sync_helper 함수를 호출
+    }
 }
 ```
