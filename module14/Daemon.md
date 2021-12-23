@@ -65,4 +65,6 @@ manager 인스턴스는 `void initialize (entry *&my_entry)` 에서 초기화되
 
 실제 작업들은 하위 클래스들에서 이뤄지고 manager에서 실질적인 스레드 작업은 없는 것으로 보입니다.
 
+함수 `create_and_track_resource`는 manager 내에서의 daemon, workerpool 리소스 추가작업 등에 사용됩니다.
 
+함수 `push_task` `push_task_on_core` 는 manager 내에서 각 workerpool로 작업을 넘겨줄 때 호출됩니다. 
