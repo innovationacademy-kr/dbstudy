@@ -65,13 +65,10 @@ Daemon 등을 이해하기 위해서는 Cubrid의 스레드 작업 구조에 대
 
       task (void) = default;
 
-      // abstract class requires virtual destructor
       virtual ~task (void) = default;
 
-      // virtual functions to be implemented by inheritors
       virtual void execute (context_type &) = 0;
 
-      // implementation of task's retire function.
       virtual void retire (void)
       {
 	delete this;
