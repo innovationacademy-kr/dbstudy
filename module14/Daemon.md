@@ -70,6 +70,7 @@ Daemon 등을 이해하기 위해서는 Cubrid의 스레드 작업 구조에 대
       virtual ~task (void) = default;
 
       virtual void execute (context_type &) = 0;
+> task가 실질적으로 실행되는 진입점
 
       virtual void retire (void)
       {
