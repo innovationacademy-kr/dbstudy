@@ -144,17 +144,22 @@ manager 인스턴스는 `void initialize (entry *&my_entry)` 에서 초기화되
 
 `waiter`는 대기 작업을 진행해주는 객체입니다.
 condition_variable에 .wait_for .wait_until를 통해 무조건 lock이 걸린 뮤텍스와 타임아웃, 조건을 넘겨주어 대기를 처리합니다.
+<br/>	
+`RUNNING`<br/>
+`SLEEPING`<br/>
+`AWAKENING`<br/>
 
 <br/>
 
 `looper`는 대기 시간을 계산하고 실행 상태를 처리하는 객체입니다.
 처리할 수 있는 대기 시간 유형은 4가지 종류로<br/>
-`무기한 대기`<br/>
-`고정된 값 만큼 대기`<br/>
-`지정된 값들(최대 3개)을 순회`<br/>
-`커스텀 함수를 이용해 계산된 대기`<br/>
+`INF_WAITS`<br/>
+`FIXED_WAITS`<br/>
+`INCREASING_WAITS`<br/>
+`CUSTOM_WAITS`<br/>
 가 있습니다.
-
+	
+<br/>
 
 아래는 daemon의 전반적인 초기화 부분입니다.
 
