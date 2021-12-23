@@ -387,7 +387,7 @@ dwb_file_sync_helper_daemon_init ()
       }
     m_available_entries_count -= entries_count;
 > entry를 차지합니다. 차지할 수 없다면 종료합니다
-																									
+
     Res *new_res = new Res (std::forward<CtArgs> (args)...);
 > create_daemon에서 호출된 경우 Res는 daemon이 되고 각 인자를 생성자로 하는 객체를 생성합니다
 
