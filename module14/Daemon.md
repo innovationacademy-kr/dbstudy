@@ -399,7 +399,7 @@ dwb_file_sync_helper_daemon_init ()
 
 	
   daemon *
-	manager::create_daemon (const looper &looper_arg, entry_task *exec_p, const char *daemon_name /* = "" */,
+  manager::create_daemon (const looper &looper_arg, entry_task *exec_p, const char *daemon_name /* = "" */,
 			  entry_manager *context_manager /* = NULL */)
   {
 #if defined (SERVER_MODE)
