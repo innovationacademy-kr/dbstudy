@@ -88,10 +88,65 @@ condition_variable에 .wait_for .wait_until를 통해 무조건 lock이 걸린 �
 
 <br/>
 
-`looper`는 대기 시간을 계산하는 객체입니다.
+`looper`는 대기 시간을 계산하고 실행 상태를 처리하는 객체입니다.
 처리할 수 있는 대기 시간 유형은 4가지 종류로<br/>
 `무기한 대기`<br/>
 `고정된 값 만큼 대기`<br/>
 `지정된 값들(최대 3개)을 순회`<br/>
 `커스텀 함수를 이용해 계산된 대기`<br/>
 가 있습니다.
+
+
+아래는 daemon의 전반적인 초기화 부분입니다.
+
+```cpp
+  template <typename Context>
+  daemon::daemon (const looper &loop_pattern_arg, context_manager<Context> *context_manager_arg,
+		  task<Context> *exec, const char *name /* = "" */)
+    : m_waiter ()
+    , m_looper (loop_pattern_arg)
+    , m_func_on_stop ()
+    , m_thread ()
+    , m_name (name)
+    , m_stats (daemon::create_statset ())
+  {
+    m_thread = std::thread (daemon::loop_with_context<Context>, this, context_manager_arg, exec, m_name.c_str ());
+>   스레드를 시작하고 m_thread에 저장.
+>   스레드는 daemon::loop_with_context<Context>(this, context_manager_arg, exec, m_name.c_str()) 꼴이 됩니다.
+  }
+
+  template <typename Context>
+  void
+  daemon::loop_with_context (daemon *daemon_arg, context_manager<Context> *context_manager_arg,
+			     task<Context> *exec_arg, const char *name)
+  {
+    (void) name;
+
+    Context &context = context_manager_arg->create_context ();
+>   새 context 등록
+
+    daemon_arg->m_func_on_stop = std::bind (&context_manager<Context>::stop_execution, std::ref (*context_manager_arg),
+					    std::ref (context));
+>   실행 정지 시의 콜백 함수 설정
+              
+    daemon_arg->register_stat_start ();
+    
+    while (!daemon_arg->m_looper.is_stopped ())
+>   looper 의 상태가 정지가 아니면
+      {
+	exec_arg->execute (context);
+> task->execute 를 통해 작업 실행
+
+	daemon_arg->register_stat_execute ();
+
+	daemon_arg->pause ();
+> daemon->pause 를 호출하여 스레드를 휴식 (looper->waiter 방향으로 정지)
+	daemon_arg->register_stat_pause ();
+      }
+
+    context_manager_arg->retire_context (context);
+    exec_arg->retire ();
+> context 제거
+  }
+```
+
