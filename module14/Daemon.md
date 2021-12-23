@@ -356,29 +356,71 @@ void
 
 ```cpp
 void
-dwb_flush_block_daemon_init ()
-{
-  cubthread::looper looper = cubthread::looper (std::chrono::milliseconds (1));
-  dwb_flush_block_daemon_task *daemon_task = new dwb_flush_block_daemon_task ();
-
-  dwb_flush_block_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
-}
-
-void
 dwb_file_sync_helper_daemon_init ()
 {
   cubthread::looper looper = cubthread::looper (std::chrono::milliseconds (10));
+> 고정된 인터벌을 가지는 looper 생성
+
   cubthread::entry_callable_task *daemon_task = new cubthread::entry_callable_task (dwb_file_sync_helper_execute);
-
-  dwb_file_sync_helper_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
-}
-
-void
-dwb_daemons_init ()
-{
-  dwb_flush_block_daemon_init ();
-  dwb_file_sync_helper_daemon_init ();
-}
+> callable_task에 실제로 execute 될 함수 dwb_file_sync_helper_execute를 넘겨주면서 task 객체를 생성
 	
-	create daemon 설명: TODO
+  dwb_file_sync_helper_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
+> looper와 task를 넘겨주며 daemon 생성
+}
+```
+
+하나의 생성 과정을 위주로 잡고 설명하겠습니다.
+
+	
+```cpp
+	template<typename Res, typename ... CtArgs>
+  inline Res *manager::create_and_track_resource (std::vector<Res *> &tracker, size_t entries_count, CtArgs &&... args)
+  {
+    check_not_single_thread ();
+
+    std::unique_lock<std::mutex> lock (m_entries_mutex);
+> tracker 변경에 앞서 lock
+
+    if (m_available_entries_count < entries_count)
+      {
+	return NULL;
+      }
+    m_available_entries_count -= entries_count;
+> entry를 차지합니다. 차지할 수 없다면 종료합니다
+																									
+    Res *new_res = new Res (std::forward<CtArgs> (args)...);
+> create_daemon에서 호출된 경우 Res는 daemon이 되고 각 인자를 생성자로 하는 객체를 생성합니다
+
+    tracker.push_back (new_res);
+> tracker(m_daemons)에 넣어 관리합니다.
+	
+    return new_res;
+  }
+
+	
+  daemon *
+	manager::create_daemon (const looper &looper_arg, entry_task *exec_p, const char *daemon_name /* = "" */,
+			  entry_manager *context_manager /* = NULL */)
+  {
+#if defined (SERVER_MODE)
+    if (is_single_thread ())
+      {
+	assert (false);
+	return NULL;
+      }
+    else
+      {
+	if (context_manager == NULL)
+	  {
+	    context_manager = m_daemon_entry_manager;
+	  }
+
+	return create_and_track_resource (m_daemons, 1, looper_arg, context_manager, exec_p, daemon_name);
+> tracker로 m_daemons 을 넘겨줘서 1 엔트리만큼을 차지하는 데몬을 생성합니다.
+      }
+#else // not SERVER_MODE = SA_MODE
+    assert (false);
+    return NULL;
+#endif // not SERVER_MODE = SA_MODE
+  }
 ```
