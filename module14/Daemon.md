@@ -342,3 +342,38 @@ void
 지금까지의 내용을 아래와 같이 그릴 수 있습니다.
 
 ![6](https://user-images.githubusercontent.com/12230655/147214782-99e50b75-911e-46b3-8e1b-9e15a5004370.png)
+
+<br/>
+<br/>
+
+
+### dwb_daemons_init
+
+```cpp
+void
+dwb_flush_block_daemon_init ()
+{
+  cubthread::looper looper = cubthread::looper (std::chrono::milliseconds (1));
+  dwb_flush_block_daemon_task *daemon_task = new dwb_flush_block_daemon_task ();
+
+  dwb_flush_block_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
+}
+
+void
+dwb_file_sync_helper_daemon_init ()
+{
+  cubthread::looper looper = cubthread::looper (std::chrono::milliseconds (10));
+  cubthread::entry_callable_task *daemon_task = new cubthread::entry_callable_task (dwb_file_sync_helper_execute);
+
+  dwb_file_sync_helper_daemon = cubthread::get_manager ()->create_daemon (looper, daemon_task);
+}
+
+void
+dwb_daemons_init ()
+{
+  dwb_flush_block_daemon_init ();
+  dwb_file_sync_helper_daemon_init ();
+}
+	
+	create daemon 설명: TODO
+```
