@@ -71,3 +71,27 @@ manager 인스턴스는 `void initialize (entry *&my_entry)` 에서 초기화되
 
 <br/>
 
+![5](https://user-images.githubusercontent.com/12230655/147200131-003f9267-597f-4aed-ba8c-a7f406325777.png)
+
+위처럼 하나의 Daemon은 하나의 스레드, 하나의 waiter, 하나의 looper를 가지고 있습니다.
+
+우선 위 3가지에 대해 설명합니다.
+
+<br/>
+
+`thread`는 Daemon::loop_with_context (or ::loop_without_context)로 task를 계속 진행합니다.
+
+<br/>
+
+`waiter`는 대기 작업을 진행해주는 객체입니다.
+condition_variable에 .wait_for .wait_until를 통해 무조건 lock이 걸린 뮤텍스와 타임아웃, 조건을 넘겨주어 대기를 처리합니다.
+
+<br/>
+
+`looper`는 대기 시간을 계산하는 객체입니다.
+처리할 수 있는 대기 시간 유형은 4가지 종류로<br/>
+`무기한 대기`<br/>
+`고정된 값 만큼 대기`<br/>
+`지정된 값들(최대 3개)을 순회`<br/>
+`커스텀 함수를 이용해 계산된 대기`<br/>
+가 있습니다.
