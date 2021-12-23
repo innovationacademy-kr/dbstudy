@@ -97,9 +97,9 @@ dwb_file_sync_helper_daemon_init ()
 }
 ```
 dwb_file_sync_helper_daemon_init을 예시로 설명하면, looper를 통해 간격(milliseconds 10)을 지정하고 entry_callable_task(callable_task<entry>)에
-dwb_file_sync_helper_execute 함수를 넘겨주어 daemon_task를 생성합니다.
+`dwb_file_sync_helper_execute` 함수를 넘겨주어 daemon_task를 생성합니다.
 
-이후 daemon_task->execute() 를 호출하여 처리해야할 작업인 dwb_file_sync_helper_execute(entry)를 호출할 수 있습니다.
+이후 `daemon_task->execute()` 를 호출하여 처리해야할 작업인 `dwb_file_sync_helper_execute(entry)`를 호출할 수 있습니다.
 
 <br/>
 <br/>
