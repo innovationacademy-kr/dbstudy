@@ -373,7 +373,7 @@ dwb_file_sync_helper_daemon_init ()
 
 	
 ```cpp
-	template<typename Res, typename ... CtArgs>
+  template<typename Res, typename ... CtArgs>
   inline Res *manager::create_and_track_resource (std::vector<Res *> &tracker, size_t entries_count, CtArgs &&... args)
   {
     check_not_single_thread ();
