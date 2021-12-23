@@ -60,3 +60,9 @@ manager 인스턴스는 `void initialize (entry *&my_entry)` 에서 초기화되
 
 ![4](https://user-images.githubusercontent.com/12230655/147193697-10f4dff1-ad91-4d69-99ae-0274368ba524.png)
 
+`entry_workerpool *`의 벡터와 `daemon *`의 벡터가 manager class 내에 존재합니다.
+이 벡터들을 사용하여 각 entry_workerpool와 daemon에 대한 정보를 관리합니다.
+
+실제 작업들은 하위 클래스들에서 이뤄지고 manager에서 실질적인 스레드 작업은 없는 것으로 보입니다.
+
+
