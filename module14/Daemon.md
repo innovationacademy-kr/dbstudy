@@ -38,7 +38,22 @@ dwb_daemons_init ()
 
 <br/>
 
-### Cubrid에서의 Daemon
+### Cubrid 에서의 Thread
 
+Daemon 등을 이해하기 위해서는 Cubrid의 스레드 구조에 대해 이해가 필요해 보입니다.
+
+<br/>
+
+![2](https://user-images.githubusercontent.com/12230655/147192226-d25b50a0-fe7a-44c1-a0e6-2224a6a58a19.png)
+
+우선 Cubrid 의 스레드는 아래와 같은 cubthread 라는 네임스페이스 안에서 처리됩니다
+
+<br/>
+
+![3](https://user-images.githubusercontent.com/12230655/147192636-11c04418-a570-44c6-9f29-e264ff921aba.png)
+
+core(worker sub-group)을 관리하는 worker_pool과 daemon은 cubthread 내에 있는 manager 클래스에서 관리됩니다.
+
+manager 인스턴스는 `void initialize (entry *&my_entry)` 에서 초기화되고 static으로 선언된 Manager 포인터가 받게 됩니다.
 
 
