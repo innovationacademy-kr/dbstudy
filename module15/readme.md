@@ -42,7 +42,7 @@ disk_reserve_sectors () //섹터 예약 진행
 
  이후 요청 섹터를 모두 사전예약할 때까지 '볼륨 추가 & 사전예약'을 반복한다.
 
-<img src="img/expand_add.png">
+<img src="img/expand_add.PNG">
 
  ## 3. 코드 분석
 ---
@@ -111,7 +111,7 @@ DKNSECTS nsect_free_new = 0;
 <details>
 <summary>3. 구조체</summary>
 
-`DBDEF_VOL_EXT_INFO volext;` (지역변수)
+`DBDEF_VOL_EXT_INFO volext;`
 새 볼륨 추가(add)할 때 필요한 정보들을 저장한 구조체 변수이다.
 
 ```c
@@ -211,20 +211,27 @@ if (total < max)
 <summary>3. 볼륨 추가(add) & 사전예약</summary>
 
 ```c
-/* 3-1) 사전예약 끝날 때까지 볼륨 추가&사전예약 반복 */
+/* 3-1) volext지역변수 초기화. (볼륨 생성에 필요한 정보 저장 변수) */
+volext.nsect_max = extend_info->nsect_vol_max;//볼륨 확장 시 최댓값
+volext.comments = "Automatic Volume Extension";
+volext.voltype = voltype;
+volext.purpose = voltype == DB_PERMANENT_VOLTYPE ? DB_PERMANENT_DATA_PURPOSE : DB_TEMPORARY_DATA_PURPOSE;
+volext.overwrite = false;
+volext.max_writesize_in_sec = 0;
+/* 3-2) 사전예약 끝날 때까지 볼륨 추가&사전예약 반복 */
 while (nsect_extend > 0)
 {
 	volext.path = NULL;
 	volext.name = NULL;
 
-  /* 3-2) 생성할 볼륨의 total값 저장 */
-	volext.nsect_total = nsect_extend + DISK_SYS_NSECT_SIZE (volext.nsect_max);//???
+  /* 3-3) 생성할 볼륨의 total값 저장 */
+	volext.nsect_total = nsect_extend + DISK_SYS_NSECT_SIZE (volext.nsect_max);//??
 	//유효범위에 맞게 조정
 	//total이 max보다 크면 처음부터 max크기로 볼륨 생성(확장 불가)
 	volext.nsect_total = MIN (volext.nsect_max, volext.nsect_total);
 	volext.nsect_total = MAX (volext.nsect_total, DISK_MIN_VOLUME_SECTS);
 	volext.nsect_total = DISK_SECTS_ROUND_UP (volext.nsect_total);
-  /* 3-3) 볼륨 생성 */
+  /* 3-4) 볼륨 생성 */
 	error_code = disk_add_volume (thread_p, &volext, &volid_new, &nsect_free_new);
 	if (error_code != NO_ERROR)
 	{
@@ -232,12 +239,12 @@ while (nsect_extend > 0)
 		return error_code;
 	}
 	assert (disk_Cache->nvols_perm + disk_Cache->nvols_temp <= LOG_MAX_DBVOLID);
-	/* 3-4) 새로 볼륨 추가되서 생긴 섹터 수를 변수 값들에 적용 */
+  /* 3-5) 새 볼륨 추가로 생긴 섹터 수를 변수값에 적용 */
 	nsect_extend -= nsect_free_new;
 
 	extend_info->nsect_total += volext.nsect_total;
 	extend_info->nsect_max += volext.nsect_max;
-  /* 3-5) 추가한 볼륨에 사전예약 진행 */
+  /* 3-6) 추가한 볼륨에 사전예약 진행 */
 	disk_cache_lock_reserve (extend_info);
 	disk_Cache->vols[volid_new].nsect_free = nsect_free_new;
 	assert (disk_Cache->vols[volid_new].purpose == volext.purpose);
@@ -249,7 +256,7 @@ while (nsect_extend > 0)
 	}
 
 	disk_cache_unlock_reserve (extend_info);
-  /* 3-6) 아래 조건이 참이면, 사전예약이 완료됐다는 의미 */
+  /* 3-7) 아래 조건이 참이면, 사전예약이 완료됐다는 의미 */
 	if (extend_info->nsect_total < extend_info->nsect_max)
 	{
 		extend_info->volid_extend = volid_new;
