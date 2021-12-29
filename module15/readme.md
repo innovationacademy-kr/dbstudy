@@ -3,7 +3,6 @@
 # disk_extend() 함수 분석
 
 ## 1. 사전 맥락
----
  Disk Manager의 역할은 File Manager로부터 요청받은 섹터의 예약(사용)여부를 관리해주는 것이다. 섹터의 할당을 요청 받으면 Disk Manager는 섹터테이블(STAB)의 비트를 요청받은 섹터 수 만큼 켜줘서 예약을 진행한다. 이를 섹터 예약이라고 한다. (섹터테이블이란 각 섹터당 하나의 비트값으로 예약 여부를 관리하는 볼륨 내부의 메타 데이터 영역이다.)
 
  섹터 예약은 2단계로 이루어진다. (1)볼륨들의 합산 정보를 메모리에 Caching한 disk_Cache전역변수에 사전예약을 진행하고, (2)그 정보를 토대로 실제 볼륨 내부의 섹터테이블에 예약을 진행하는 방식이다. 1단계를 통해 속도가 빠른 메모리단에서 어떤 볼륨에 얼마나 예약을 진행할 지 결정하므로 효율적인 섹터 예약을 할 수 있다.
@@ -12,9 +11,8 @@
 
  이번 주 설명할 `disk_extend()`함수는 1단계인 사전예약 단계에서 실행되는 함수이다. 현재 생성되어 사용되는 볼륨만으로 요청된 섹터를 할당해줄 수 없을 때 볼륨을 확장, 추가해주는 작업을 수행한다. 볼륨의 확장(expand)이란 기존 볼륨의 용량을 늘리는 작업이고, 추가(add)는 새 볼륨을 생성하는 작업을 의미한다.
  > extend는 두 작업을 총칭하는 말로 여기서는 '확보'라고 표현하겠다.
- 
- ## 2. 함수 구조
  ---
+ ## 2. 함수 구조
 <img src="img/disk_extend_caller_graph.png">
 
 ```c
@@ -44,11 +42,17 @@ disk_reserve_sectors () //섹터 예약 진행
 
 <img src="img/expand_add.PNG">
 
- ## 3. 코드 분석
 ---
+
+ ## 3. 코드 분석
 ### 1) 변수 분석
 <details>
 <summary> 1. 매개변수 </summary>
+
+```c
+static int disk_extend (THREAD_ENTRY * thread_p,
+ DISK_EXTEND_INFO * extend_info, DISK_RESERVE_CONTEXT * reserve_context)
+```
 
 ```c
 DISK_EXTEND_INFO * extend_info//타입 별 합산 정보 저장 구조체(disk_Cache에 속해있음)
