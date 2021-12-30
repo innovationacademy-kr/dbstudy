@@ -13,12 +13,14 @@ Cubrid DB study
 * [disk_reserve_sectors](module09/README.md)
 * [disk_reserve_from_cache](module11/README.md)
 * [disk_reserve_sectors_in_volume](module13/README.md)
+* [disk_extend](module15/README.md)
 
 ### [Double Write Buffer](module06/README.md)
 * [double write buffer structure](module08/README.md)
 * [Slot 탐색 및 Page 저장](module10/README.md)
 * [dwb_slots_hash_insert](module12/README.md)
 * [DWB Flush](module14/README.md)
+* [dwb_flush_block](module16/README.md)
 
 ## Phase 3
 * TBD
