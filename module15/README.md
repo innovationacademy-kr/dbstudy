@@ -73,7 +73,7 @@ struct disk_extend_info
 	VOLID volid_extend;//마지막에 생성된 volid, auto extent대상이 됨.
 	DB_VOLTYPE voltype;//볼륨 타입
 };
-```	
+```
 
 ```c
 DISK_RESERVE_CONTEXT * reserve_context//사전예약 관련 정보들 저장되어 있음.
@@ -182,7 +182,7 @@ if (total < max)
 	if (extend_info->nsect_total == extend_info->nsect_max)
 	{
 		extend_info->volid_extend = NULL_VOLID;
-		//마지막 볼륨 확장했으므로, 확장할 볼륨 저장 변수에 NULL저장 
+		//마지막 볼륨 확장했으므로, 확장할 볼륨 저장 변수에 NULL저장
 	}
 
   /* 2-3) 확장된 섹터 수 변수들에 적용 */
