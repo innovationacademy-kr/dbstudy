@@ -92,7 +92,7 @@ fileio_write_pages (THREAD_ENTRY * thread_p, int vol_fd, char *io_pages_p, PAGEI
   offset = FILEIO_GET_FILE_SIZE (page_size, page_id);
   // page_size * page_id page_id 가 0 이므로 offset = 0
   nbytes_to_be_written = ((size_t) page_size) * ((size_t) num_pages);
-  // 써야하는 byte 수 
+  // 써야하는 byte 수
   while (nbytes_to_be_written > 0)
   {
     nbytes_written = fileio_os_write (thread_p, vol_fd, io_pages_p, nbytes_to_be_written, offset);
@@ -181,9 +181,9 @@ dwb_write_block (THREAD_ENTRY * thread_p, DWB_BLOCK * block, DWB_SLOT * p_dwb_or
       continue;
       // 중복 슬롯이라 제거됐으면, continue
     assert (VPID_ISNULL (&p_dwb_ordered_slots[i + 1].vpid) || VPID_LT (vpid, &p_dwb_ordered_slots[i + 1].vpid));
-    // 다음 슬롯의 vpid 가 NULL 이 아니고 현재 슬롯의 vpid 보다 크거나 같지 않으면 clush (정렬이 안 됐다는 것이다)
+    // 다음 슬롯의 vpid 가 NULL 이 아니고 현재 슬롯의 vpid 보다 크거나 같지 않으면 crash (정렬이 안 됐다는 것이다)
     if (last_written_volid != vpid->volid)
-    // 현재 slot 의 vpid 와 같지 않으면 새로운 volome 이니 fd를 얻어온다.
+    // 현재 slot 의 vpid 와 같지 않으면 새로운 volume 이니 fd를 얻어온다.
     {
     	/* Get the volume descriptor. */
        if (current_flush_volume_info != NULL)
@@ -194,7 +194,7 @@ dwb_write_block (THREAD_ENTRY * thread_p, DWB_BLOCK * block, DWB_SLOT * p_dwb_or
 	 current_flush_volume_info = NULL;	/* reset */
        }
        // write가 완료된 volume의 flush_volume_info에 모든 pages 가 write 됐고
-       // flush 해도 된다는 flag 를 주고 current_flush_volume_info 를 초기화 
+       // flush 해도 된다는 flag 를 주고 current_flush_volume_info 를 초기화
        vol_fd = fileio_get_volume_descriptor (vpid->volid);
        // 현재 슬롯의 vpid 의 fd 를 구해온다.
        if (vol_fd == NULL_VOLDES)
@@ -276,7 +276,7 @@ dwb_write_block (THREAD_ENTRY * thread_p, DWB_BLOCK * block, DWB_SLOT * p_dwb_or
       assert (block->flush_volumes_info[i].vdes != NULL_VOLDES);
     }
   #endif
-  
+
   #if defined (SERVER_MODE)
     if (file_sync_helper_can_flush && (dwb_Global.file_sync_helper_block == NULL)
 	   && (block->count_flush_volumes_info > 0))
