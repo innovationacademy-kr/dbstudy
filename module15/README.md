@@ -73,7 +73,7 @@ struct disk_extend_info
 	VOLID volid_extend;//마지막에 생성된 volid, auto extent대상이 됨.
 	DB_VOLTYPE voltype;//볼륨 타입
 };
-```	
+```
 
 ```c
 DISK_RESERVE_CONTEXT * reserve_context//사전예약 관련 정보들 저장되어 있음.
@@ -159,7 +159,7 @@ DKNSECTS nsect_free_new = 0;//확장, 추가로 얻은 가용섹터 수
 			.
 			.
 			.
-target_free = MAX ((DKNSECTS) (total * 0.01), DISK_MIN_VOLUME_SECTS);//??
+target_free = MAX ((DKNSECTS) (total * 0.01), DISK_MIN_VOLUME_SECTS);//total의 1%만큼 여유공간 할당
 nsect_extend = MAX (target_free - free, 0) + intention;//확보해야 할 섹터 수 저장
 ```
 </details>
@@ -182,7 +182,7 @@ if (total < max)
 	if (extend_info->nsect_total == extend_info->nsect_max)
 	{
 		extend_info->volid_extend = NULL_VOLID;
-		//마지막 볼륨 확장했으므로, 확장할 볼륨 저장 변수에 NULL저장 
+		//마지막 볼륨 확장했으므로, 확장할 볼륨 저장 변수에 NULL저장
 	}
 
   /* 2-3) 확장된 섹터 수 변수들에 적용 */
@@ -229,7 +229,8 @@ while (nsect_extend > 0)
 	volext.name = NULL;
 
   /* 3-3) 생성할 볼륨의 total값 저장 */
-	volext.nsect_total = nsect_extend + DISK_SYS_NSECT_SIZE (volext.nsect_max);//??
+	//확보할 섹터 수 + 시스템 페이지 영역 섹터 수(nsect_max를 비트로 표현할 만큼 섹터페이지로 할당되어 있으므로)
+	volext.nsect_total = nsect_extend + DISK_SYS_NSECT_SIZE (volext.nsect_max);
 	//유효범위에 맞게 조정
 	//total이 max보다 크면 처음부터 max크기로 볼륨 생성(확장 불가)
 	volext.nsect_total = MIN (volext.nsect_max, volext.nsect_total);
