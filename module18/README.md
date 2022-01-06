@@ -322,3 +322,151 @@ end:
 	return error_code;
 }
 ```
+
+### **dwb_check_data_page_is_sane()**
+
+*storage/double_write_buffer.c: 2987*
+
+```cpp
+/*
+ * dwb_check_data_page_is_sane () : Data page가 corrupted 됐는지 확인
+ *
+ * return   : Error code
+ * thread_p (in): The thread entry.
+ * block(in): DWB recovery block.
+ * p_dwb_ordered_slots(in): DWB ordered slots
+ * p_num_recoverable_pages(out): number of recoverable corrupted pages
+ *
+ */
+static int
+dwb_check_data_page_is_sane(THREAD_ENTRY *thread_p, DWB_BLOCK *rcv_block, DWB_SLOT *p_dwb_ordered_slots,
+							int *p_num_recoverable_pages)
+{
+	char page_buf[IO_MAX_PAGE_SIZE + MAX_ALIGNMENT];
+	FILEIO_PAGE *iopage;
+	VPID *vpid;
+	int vol_fd = NULL_VOLDES, temp_vol_fd = NULL_VOLDES, vol_pages = 0;
+	INT16 volid;
+	int error_code;
+	unsigned int i;
+	int num_recoverable_pages = 0;
+	bool is_page_corrupted;
+
+	assert(rcv_block != NULL && p_dwb_ordered_slots != NULL && p_num_recoverable_pages != NULL);
+	// 함수 인자로 들어온 포인터 변수들의 유효성 검사
+	iopage = (FILEIO_PAGE *)PTR_ALIGN(page_buf, MAX_ALIGNMENT);
+	/* #define PTR_ALIGN(addr, boundary) \
+	 *		(memset((void*)(addr), 0, DB_WASTED_ALIGN((UINTPTR)(addr), (UINTPTR)(boundary))),\
+	 *		(char *)((((UINTPTR)(addr) + ((UINTPTR)((boundary)-1)))) & ~((UINTPTR)((boundary)-1))))
+	 * #endif
+	 */
+	memset(iopage, 0, IO_PAGESIZE);
+	// iopage를 페이지 사이즈만큼 0으로 초기화
+
+	volid = NULL_VOLID;
+	// #define NULL_VOLID  (-1)
+
+	/* Check whether the data page is corrupted. If true, replaced with the DWB page. */
+	// Data page가 corrupted 됐는지 확인해보고 그렇다면 DWB page 대체된다.
+	for (i = 0; i < rcv_block->count_wb_pages; i++)
+	{
+		// 블록 내 페이지 수만큼 반복문을 돌면서
+		vpid = &p_dwb_ordered_slots[i].vpid;
+		// vipd 포인터 변수에 정렬된 순서대로 슬롯의 vpid를 넣고
+		if (VPID_ISNULL(vpid))
+		// vpid 유효성 검사
+		{
+			continue;
+			// NULL이면(유효하지 않으면) continue
+		}
+
+		if (volid != vpid->volid)
+		{
+			/* Update the current VPID and get the volume descriptor. */
+			temp_vol_fd = fileio_get_volume_descriptor(vpid->volid);
+			// 현재 VPID를 업데이트하고 volume descriptor를 가져온다.
+			if (temp_vol_fd == NULL_VOLDES)
+			// 유효성 검사
+			{
+				continue;
+				// 유효하지 않은 volume descriptor라면 continue
+			}
+			vol_fd = temp_vol_fd;
+			volid = vpid->volid;
+			vol_pages = fileio_get_number_of_volume_pages(vol_fd, IO_PAGESIZE);
+			// 페이지 수 구하기 (페이지 수 = 볼륨의 크기)
+		}
+
+		assert(vol_fd != NULL_VOLDES);
+		// vol_fd가 유효하지 않으면 crash
+
+		if (vpid->pageid >= vol_pages)
+		{
+			/* The page was written in DWB, not in data volume. */
+			// 페이지가 data volume이 아닌 DWB로 작성된 경우
+			continue;
+		}
+
+		/* Read the page from data volume. */
+		// Data volume에서 페이지 읽기
+		if (fileio_read(thread_p, vol_fd, iopage, vpid->pageid, IO_PAGESIZE) == NULL)
+		{
+			/* There was an error in reading the page. */
+			// 읽는 도중 에러 발생
+			ASSERT_ERROR_AND_SET(error_code);
+			// 반환될 error_code가 NO_ERROR가 아닌지 확인
+			return error_code;
+		}
+
+		error_code = fileio_page_check_corruption(thread_p, iopage, &is_page_corrupted);
+		// Data volume의 페이지가 corrupted 됐는지 확인
+		if (error_code != NO_ERROR)
+		{
+			// 에러 발생 시
+			return error_code;
+		}
+
+		if (!is_page_corrupted)
+		// page가 corrupted되지 않았다면
+		{
+			/* The page in data volume is not corrupted. Do not overwrite its content - reset slot VPID. */
+			// 페이지 손상이 없으니 내용을 덮어쓰면 안된다.
+			VPID_SET_NULL(&p_dwb_ordered_slots[i].vpid);
+			// VPID를 NULL로 초기화
+			fileio_initialize_res(thread_p, p_dwb_ordered_slots[i].io_page, IO_PAGESIZE);
+			// 나머지 요소들도 초기화
+			continue;
+		}
+
+		/* Corrupted page in data volume. Check DWB. */
+		// Data volume의 page가 corrupted된 경우 DWB 체크
+		error_code = fileio_page_check_corruption(thread_p, p_dwb_ordered_slots[i].io_page, &is_page_corrupted);
+		// DWB의 페이지가 corrupted 됐는지 확인
+		if (error_code != NO_ERROR)
+		{
+			// 에러 발생 시
+			return error_code;
+		}
+
+		if (is_page_corrupted)
+		// page가 corrupted되었다면
+		{
+			/* The page is corrupted in data volume and DWB. Something wrong happened. */
+			// Data volume의 페이지와 DWB의 페이지 모두 corrupted. 문제 발생.
+			assert_release(false);
+			dwb_log_error("Can't recover page = (%d,%d)\n", vpid->volid, vpid->pageid);
+			// recover 불가하다는 로그 남김
+			return ER_FAILED;
+		}
+
+		/* The page content in data volume will be replaced later with the DWB page content. */
+		// Data volume의 페이지는 후에 DWB 페이지 content로 대체된다.
+		dwb_log("page = (%d,%d) is recovered with DWB.\n", vpid->volid, vpid->pageid);
+		// DWB로 recover 됐음을 로그 남김
+		num_recoverable_pages++;
+	}
+
+	*p_num_recoverable_pages = num_recoverable_pages;
+	return NO_ERROR;
+}
+```
