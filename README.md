@@ -9,11 +9,13 @@ Cubrid DB study
 
 ## Phase 2
 ### [Disk Manager](module05/README.md)
-* [disk_format() && disk_stab_init()](module07/README.md)
+* [disk_manager_init](module05/README.md)
+* [disk_format && disk_stab_init](module07/README.md)
 * [disk_reserve_sectors](module09/README.md)
 * [disk_reserve_from_cache](module11/README.md)
 * [disk_reserve_sectors_in_volume](module13/README.md)
 * [disk_extend](module15/README.md)
+* [disk_add_volume](module17/README.md)
 
 ### [Double Write Buffer](module06/README.md)
 * [double write buffer structure](module08/README.md)
