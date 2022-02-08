@@ -11,3 +11,12 @@
 ### [module06](/module06/README.md)
 * [DWB 발표자료.pptx](DWB%20발표자료.pptx)
 * [DWB 분석문서.pdf](DWB%20분석문서.pdf)
+
+### Cubrid references
+* [Overview](DFM1_overview.pdf)
+* [Volume Architecture](DFM2_volume_architecture.pdf)
+* [Sector Reservation](DFM3_sector_reservation.pdf)
+* [Volume Extention](DFM4_volume_extention.pdf)
+* [File Architecture](DFM5_file_architecture.pdf)
+* [Page Allocatioin](DFM6_page_allocation.pdf)
+* [File Creation](DFM7_file_creation.pdf)

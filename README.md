@@ -9,21 +9,27 @@ Cubrid DB study
 
 ## Phase 2
 ### [Disk Manager](module05/README.md)
+* [disk_manager_init](module05/README.md)
 * [disk_format() && disk_stab_init()](module07/README.md)
 * [disk_reserve_sectors](module09/README.md)
 * [disk_reserve_from_cache](module11/README.md)
 * [disk_reserve_sectors_in_volume](module13/README.md)
 * [disk_extend](module15/README.md)
+* [disk_add_volume](module17/README.md)
 
 ### [Double Write Buffer](module06/README.md)
+* [double write buffer](module06/README.md)
 * [double write buffer structure](module08/README.md)
 * [Slot 탐색 및 Page 저장](module10/README.md)
 * [dwb_slots_hash_insert](module12/README.md)
 * [DWB Flush](module14/README.md)
 * [dwb_flush_block](module16/README.md)
+* [Recovery by DWB](module18/README.md)
 
 ## Phase 3
-* [Disk Manager](module19/)
+* [Disk Manager Final](module19/)
+* [Double Write Buffer Final](module20/)
+* [Thread](module20/)
 
 ## Resources
 * [resources](resources/README.md)
