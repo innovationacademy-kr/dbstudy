@@ -17,7 +17,7 @@ DB 시스템이 DWB를 사용하는 방식
 
 ## **2. DWB 구조**
 
-이 문서에서 DWB라 함은 메모리에 할당되어 있는 DBW block들을 의미하며 block들은 slot들로 구성되어 있다.
+이 문서에서 DWB라 함은 메모리에 할당되어 있는 DWB block들을 의미하며 block들은 slot들로 구성되어 있다.
 
 DWB volume은 disk에 저장되어 있는 DWB의 단일 블록이다.
 
